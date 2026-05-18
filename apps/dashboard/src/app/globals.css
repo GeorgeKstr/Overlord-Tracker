@@ -1,0 +1,213 @@
+@import 'swagger-ui-react/swagger-ui.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 36 12% 14%;
+    --foreground: 45 36% 86%;
+    --card: 34 13% 17%;
+    --card-foreground: 45 36% 86%;
+    --popover: 34 13% 17%;
+    --popover-foreground: 45 36% 86%;
+    --primary: 82 39% 55%;
+    --primary-foreground: 36 12% 14%;
+    --secondary: 30 10% 22%;
+    --secondary-foreground: 45 28% 80%;
+    --muted: 30 10% 22%;
+    --muted-foreground: 35 18% 62%;
+    --accent: 24 30% 28%;
+    --accent-foreground: 45 36% 86%;
+    --destructive: 6 56% 46%;
+    --destructive-foreground: 45 36% 92%;
+    --border: 30 10% 26%;
+    --input: 30 10% 26%;
+    --ring: 41 68% 56%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  [data-slot='select-content'],
+  [data-slot='dropdown-menu-content'] {
+    background-color: hsl(var(--popover));
+    opacity: 1;
+  }
+
+  [data-slot='select-item'],
+  [data-slot='dropdown-menu-item'] {
+    background-color: hsl(var(--popover));
+  }
+
+  [data-slot='select-item'][data-highlighted],
+  [data-slot='dropdown-menu-item'][data-highlighted] {
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.swagger-compact .swagger-ui {
+  font-size: 12px;
+}
+
+.swagger-compact .swagger-ui .opblock .opblock-summary {
+  min-height: 34px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.swagger-compact .swagger-ui .opblock .opblock-summary-path {
+  font-size: 12px;
+}
+
+.swagger-compact .swagger-ui .info .title {
+  font-size: 20px;
+}
+
+.swagger-compact .swagger-ui .btn,
+.swagger-compact .swagger-ui select,
+.swagger-compact .swagger-ui input[type='text'],
+.swagger-compact .swagger-ui textarea {
+  font-size: 12px;
+}
+
+.dark .swagger-compact .swagger-ui {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.dark .swagger-compact .swagger-ui .scheme-container,
+.dark .swagger-compact .swagger-ui .opblock-section-header,
+.dark .swagger-compact .swagger-ui .model-box,
+.dark .swagger-compact .swagger-ui .response-col_links,
+.dark .swagger-compact .swagger-ui .parameters-col_description {
+  background: hsl(var(--muted));
+}
+
+.dark .swagger-compact .swagger-ui .opblock,
+.dark .swagger-compact .swagger-ui .responses-inner,
+.dark .swagger-compact .swagger-ui table {
+  background: hsl(var(--card));
+}
+
+.dark .swagger-compact .swagger-ui .info .title,
+.dark .swagger-compact .swagger-ui .opblock-tag,
+.dark .swagger-compact .swagger-ui .opblock-tag span,
+.dark .swagger-compact .swagger-ui .opblock-tag small,
+.dark .swagger-compact .swagger-ui .opblock-tag button,
+.dark .swagger-compact .swagger-ui .opblock-tag .nostyle,
+.dark .swagger-compact .swagger-ui .opblock .opblock-summary-path,
+.dark .swagger-compact .swagger-ui .opblock .opblock-summary-description,
+.dark .swagger-compact .swagger-ui .response-col_status,
+.dark .swagger-compact .swagger-ui .response-col_description,
+.dark .swagger-compact .swagger-ui .parameter__name,
+.dark .swagger-compact .swagger-ui .parameter__type,
+.dark .swagger-compact .swagger-ui .parameter__in,
+.dark .swagger-compact .swagger-ui .model-title,
+.dark .swagger-compact .swagger-ui h1,
+.dark .swagger-compact .swagger-ui h2,
+.dark .swagger-compact .swagger-ui h3,
+.dark .swagger-compact .swagger-ui h4,
+.dark .swagger-compact .swagger-ui p,
+.dark .swagger-compact .swagger-ui label,
+.dark .swagger-compact .swagger-ui td,
+.dark .swagger-compact .swagger-ui th,
+.dark .swagger-compact .swagger-ui a {
+  color: hsl(var(--foreground));
+}
+
+.dark .swagger-compact .swagger-ui .info .title small,
+.dark .swagger-compact .swagger-ui .info .title .version-stamp {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+
+.dark .swagger-compact .swagger-ui .info pre,
+.dark .swagger-compact .swagger-ui .info code {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.dark .swagger-compact .swagger-ui .opblock,
+.dark .swagger-compact .swagger-ui .opblock .opblock-summary,
+.dark .swagger-compact .swagger-ui .opblock .opblock-body,
+.dark .swagger-compact .swagger-ui .responses-inner,
+.dark .swagger-compact .swagger-ui .model-box,
+.dark .swagger-compact .swagger-ui .opblock-tag,
+.dark .swagger-compact .swagger-ui table,
+.dark .swagger-compact .swagger-ui td,
+.dark .swagger-compact .swagger-ui th {
+  border-color: hsl(var(--border));
+}
+
+.dark .swagger-compact .swagger-ui .markdown code,
+.dark .swagger-compact .swagger-ui pre,
+.dark .swagger-compact .swagger-ui pre code,
+.dark .swagger-compact .swagger-ui .model-box code {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.dark .swagger-compact .swagger-ui .response-col_status code,
+.dark .swagger-compact .swagger-ui .response-col_status .response-undocumented {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.dark .swagger-compact .swagger-ui .btn,
+.dark .swagger-compact .swagger-ui select,
+.dark .swagger-compact .swagger-ui input[type='text'],
+.dark .swagger-compact .swagger-ui textarea {
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+
+.dark .swagger-compact .swagger-ui .expand-operation,
+.dark .swagger-compact .swagger-ui .opblock-summary-control,
+.dark .swagger-compact .swagger-ui .authorization__btn {
+  color: hsl(var(--foreground));
+}
+
+.dark .swagger-compact .swagger-ui svg,
+.dark .swagger-compact .swagger-ui svg path,
+.dark .swagger-compact .swagger-ui .arrow,
+.dark .swagger-compact .swagger-ui .arrow svg,
+.dark .swagger-compact .swagger-ui .arrow svg path {
+  fill: hsl(var(--foreground));
+  stroke: hsl(var(--foreground));
+}

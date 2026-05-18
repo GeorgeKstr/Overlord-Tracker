@@ -1,0 +1,284 @@
+// Prisma schema for Platform Control Plane
+// Run `pnpm db:generate` to generate the client
+// Run `pnpm db:migrate` to create/update the database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth.js (NextAuth) Required Models ─────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Core Platform Models ────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+
+  ownedProjects    Project[]
+  authoredTickets  Ticket[]        @relation("TicketAuthor")
+  assignedTickets  Ticket[]        @relation("TicketAssignee")
+  comments         Comment[]
+  projectMembers   ProjectMember[]
+  attachments      Attachment[]
+  personalTokens   PersonalAccessToken[]
+  knowledgeVersions ProjectKnowledgeVersion[]
+}
+
+model PersonalAccessToken {
+  id        String    @id @default(cuid())
+  name      String
+  tokenHash String    @unique
+  last4     String
+  createdAt DateTime  @default(now())
+  lastUsedAt DateTime?
+  expiresAt DateTime?
+  revokedAt DateTime?
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  key         String        @unique
+  name        String
+  description String?
+  status      String        @default("ACTIVE")
+  gitRepoUrl  String?
+  websiteUrl  String?
+  roadmap     String?
+  entityGraph String?
+  readmeMd    String?
+  apiSpec     String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id])
+
+  tickets  Ticket[]
+  services Service[]
+  labels   Label[]
+  members  ProjectMember[]
+  knowledgeVersions ProjectKnowledgeVersion[]
+}
+
+model ProjectKnowledgeVersion {
+  id        String   @id @default(cuid())
+  section   String
+  content   String
+  mode      String   @default("replace")
+  source    String?
+  createdAt DateTime @default(now())
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  authorId String?
+  author   User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, section, createdAt])
+}
+
+
+model Ticket {
+  id          String         @id @default(cuid())
+  title       String
+  description String?
+  status      String         @default("OPEN")
+  priority    String         @default("MEDIUM")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation("TicketAuthor", fields: [authorId], references: [id])
+
+  assigneeId String?
+  assignee   User?   @relation("TicketAssignee", fields: [assigneeId], references: [id])
+
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  // Self-referencing relation for subtickets
+  parentTicketId String?
+  parentTicket   Ticket?  @relation("SubTickets", fields: [parentTicketId], references: [id])
+  subTickets     Ticket[] @relation("SubTickets")
+
+  comments    Comment[]
+  labels      TicketLabel[]
+  attachments Attachment[]
+}
+
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+}
+
+model Label {
+  id        String   @id @default(cuid())
+  name      String
+  color     String   @default("#6366f1")
+  createdAt DateTime @default(now())
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  tickets TicketLabel[]
+
+  @@unique([projectId, name])
+}
+
+model TicketLabel {
+  ticketId String
+  labelId  String
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  label  Label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([ticketId, labelId])
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  role      String   @default("MEMBER") // ADMIN | MEMBER
+  createdAt DateTime @default(now())
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+model Attachment {
+  id        String   @id @default(cuid())
+  filename  String
+  mimeType  String
+  size      Int
+  data      String   // base64-encoded file content
+  createdAt DateTime @default(now())
+
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  uploadedById String
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id])
+}
+
+// ─── Service Registry ────────────────────────────────────────────────────────
+
+model Service {
+  id          String        @id @default(cuid())
+  name        String
+  slug        String
+  description String?
+  apiSpec     String?
+  baseUrl     String?
+  healthUrl   String?
+  status      String        @default("UNKNOWN")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  controllers     ApiController[]
+  ingestionEvents ApiIngestionEvent[]
+  tickets         Ticket[]
+
+  @@unique([projectId, slug])
+}
+
+
+model ApiController {
+  id        String   @id @default(cuid())
+  name      String
+  basePath  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  endpoints ApiEndpoint[]
+}
+
+model ApiEndpoint {
+  id           String   @id @default(cuid())
+  method       String
+  path         String
+  handler      String
+  description  String?
+  requestBody  String?
+  responseBody String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  controllerId String
+  controller   ApiController @relation(fields: [controllerId], references: [id], onDelete: Cascade)
+}
+
+model ApiIngestionEvent {
+  id        String   @id @default(cuid())
+  payload   String
+  source    String?
+  createdAt DateTime @default(now())
+
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+}

@@ -1,0 +1,4 @@
+#!/bin/sh
+cd "$(dirname "$0")"
+fuser -k 3000/tcp 3001/tcp 2>/dev/null
+exec node_modules/.bin/pnpm dev

@@ -1,0 +1,142 @@
+
+> platform-control-plane@0.1.0 dev /home/spark/Projects/overlord
+> turbo run dev "--no-cache" "--continue"
+
+ WARNING  --no-cache is deprecated and will be removed in a future major version. Use --cache=local:r,remote:r
+• turbo 2.9.14
+
+   • Packages in scope: @platform/api, @platform/config, @platform/dashboard, @platform/database, @platform/shared-types
+   • Running dev in 5 packages
+   • Remote caching disabled
+
+@platform/api:dev: cache bypass, force executing d71a23dbe2312f9c
+@platform/dashboard:dev: cache bypass, force executing 8c17ba1d3856bb3a
+@platform/api:dev: 
+@platform/api:dev: > @platform/api@0.1.0 dev /home/spark/Projects/overlord/apps/api
+@platform/api:dev: > nest start --watch
+@platform/api:dev: 
+@platform/dashboard:dev: 
+@platform/dashboard:dev: > @platform/dashboard@0.1.0 dev /home/spark/Projects/overlord/apps/dashboard
+@platform/dashboard:dev: > next dev -p 3000
+@platform/dashboard:dev: 
+@platform/api:dev: [2J[3J[H[[90m7:18:31 PM[0m] Starting compilation in watch mode...
+@platform/api:dev: 
+@platform/dashboard:dev:  ⨯ Failed to start server
+@platform/dashboard:dev: Error: listen EADDRINUSE: address already in use :::3000
+@platform/dashboard:dev:     at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+@platform/dashboard:dev:     at listenInCluster (node:net:1997:12)
+@platform/dashboard:dev:     at Server.listen (node:net:2102:7)
+@platform/dashboard:dev:     at /home/spark/Projects/overlord/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/server/lib/start-server.js:280:16
+@platform/dashboard:dev:     at new Promise (<anonymous>)
+@platform/dashboard:dev:     at startServer (/home/spark/Projects/overlord/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/server/lib/start-server.js:191:11)
+@platform/dashboard:dev:     at /home/spark/Projects/overlord/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/server/lib/start-server.js:310:52
+@platform/dashboard:dev:     at Span.traceAsyncFn (/home/spark/Projects/overlord/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/trace/trace.js:154:26)
+@platform/dashboard:dev:     at process.<anonymous> (/home/spark/Projects/overlord/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/server/lib/start-server.js:310:35)
+@platform/dashboard:dev:     at process.emit (node:events:519:28) {
+@platform/dashboard:dev:   code: 'EADDRINUSE',
+@platform/dashboard:dev:   errno: -98,
+@platform/dashboard:dev:   syscall: 'listen',
+@platform/dashboard:dev:   address: '::',
+@platform/dashboard:dev:   port: 3000
+@platform/dashboard:dev: }
+@platform/dashboard:dev: [?25h
+@platform/api:dev: [[90m7:18:33 PM[0m] Found 0 errors. Watching for file changes.
+@platform/api:dev: 
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +18ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPrismaModule dependencies initialized[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPassportModule dependencies initialized[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mHealthModule dependencies initialized[39m[38;5;3m +1ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +1ms[39m
+@platform/api:dev: [33m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [33m   WARN[39m [38;5;3m[EmailService] [39m[33mSMTP_HOST / SMTP_USER / SMTP_PASS not set — emails will be logged to console only[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAnalyticsModule dependencies initialized[39m[38;5;3m +1ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEmailModule dependencies initialized[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +1ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mUsersModule dependencies initialized[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTicketsModule dependencies initialized[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mCommentsModule dependencies initialized[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mLabelsModule dependencies initialized[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mServicesModule dependencies initialized[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mApiIngestionModule dependencies initialized[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAttachmentsModule dependencies initialized[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mProjectsModule dependencies initialized[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/api/auth}:[39m[38;5;3m +27ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/me, GET} route[39m[38;5;3m +2ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mUsersController {/api/users}:[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users, GET} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/me/tokens, GET} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/me/tokens, POST} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/me/tokens/:tokenId, DELETE} route[39m[38;5;3m +1ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/:id, GET} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mProjectsController {/api/projects}:[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/projects, POST} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/projects, GET} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/projects/:id, GET} route[39m[38;5;3m +1ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/projects/key/:key, GET} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/projects/:id, PATCH} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/projects/:id, DELETE} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/projects/:id/members, GET} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/projects/:id/agent-urls, GET} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/projects/:id/members, POST} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/projects/:id/members/:memberId, DELETE} route[39m[38;5;3m +1ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mTicketsController {/api/tickets}:[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/tickets, POST} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/tickets, GET} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/tickets/:id, GET} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/tickets/:id/subtickets, GET} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/tickets/:id, PATCH} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/tickets/:id, DELETE} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mCommentsController {/api/comments}:[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/comments, POST} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/comments, GET} route[39m[38;5;3m +1ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/comments/:id, PATCH} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/comments/:id, DELETE} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mLabelsController {/api/labels}:[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/labels, POST} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/labels, GET} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/labels/:id, DELETE} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/labels/ticket/:ticketId/label/:labelId, POST} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/labels/ticket/:ticketId/label/:labelId, DELETE} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mServicesController {/api/services}:[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/services, POST} route[39m[38;5;3m +1ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/services, GET} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/services/:id, GET} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/services/:id, PATCH} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/services/:id, DELETE} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mApiIngestionController {/api/ingestion}:[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/ingestion/controllers, POST} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/ingestion/history/:serviceId, GET} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mHealthController {/api/health}:[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/health, GET} route[39m[38;5;3m +1ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAnalyticsController {/api/analytics}:[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/analytics, GET} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAttachmentsController {/api}:[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/tickets/:ticketId/attachments, POST} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/tickets/:ticketId/attachments, GET} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/attachments/:id, GET} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/attachments/:id, DELETE} route[39m[38;5;3m +0ms[39m
+@platform/api:dev: [32m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +11ms[39m
+@platform/api:dev: [31m[Nest] 129333  - [39m05/18/2026, 7:18:34 PM [31m  ERROR[39m [38;5;3m[NestApplication] [39m[31mError: listen EADDRINUSE: address already in use :::3001[39m[38;5;3m +3ms[39m
+@platform/api:dev: node:net:1940
+@platform/api:dev:     const ex = new UVExceptionWithHostPort(err, 'listen', address, port);
+@platform/api:dev:                ^
+@platform/api:dev: 
+@platform/api:dev: Error: listen EADDRINUSE: address already in use :::3001
+@platform/api:dev:     at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+@platform/api:dev:     at listenInCluster (node:net:1997:12)
+@platform/api:dev:     at Server.listen (node:net:2102:7)
+@platform/api:dev:     at ExpressAdapter.listen (/home/spark/Projects/overlord/node_modules/.pnpm/@nestjs+platform-express@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validat_3e645l3ehqiqb6yhgcfsxu7f44/node_modules/@nestjs/platform-express/adapters/express-adapter.js:95:32)
+@platform/api:dev:     at /home/spark/Projects/overlord/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.14.4_re_wv7sonobpk6cc2m3n6ev6bfqdu/node_modules/@nestjs/core/nest-application.js:183:30
+@platform/api:dev:     at new Promise (<anonymous>)
+@platform/api:dev:     at NestApplication.listen (/home/spark/Projects/overlord/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.14.4_re_wv7sonobpk6cc2m3n6ev6bfqdu/node_modules/@nestjs/core/nest-application.js:173:16)
+@platform/api:dev:     at async bootstrap (/home/spark/Projects/overlord/apps/api/src/main.ts:35:3) {
+@platform/api:dev:   code: 'EADDRINUSE',
+@platform/api:dev:   errno: -98,
+@platform/api:dev:   syscall: 'listen',
+@platform/api:dev:   address: '::',
+@platform/api:dev:   port: 3001
+@platform/api:dev: }
+@platform/api:dev: 
+@platform/api:dev: Node.js v22.22.2

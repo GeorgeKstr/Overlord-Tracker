@@ -1,0 +1,29 @@
+{
+  "name": "platform-control-plane",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "db:generate": "prisma generate --schema=packages/database/prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema=packages/database/prisma/schema.prisma",
+    "db:push": "prisma db push --schema=packages/database/prisma/schema.prisma",
+    "db:studio": "prisma studio --schema=packages/database/prisma/schema.prisma"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "prisma": "^5.22.0",
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "dependencies": {
+    "pnpm": "^11.1.2"
+  }
+}
