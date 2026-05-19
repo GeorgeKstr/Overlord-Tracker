@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api-client'
 import { formatDate } from '@/lib/utils'
-import type { Project, Ticket as TicketType } from '@platform/shared-types'
+import type { Project, Ticket as TicketType, UserSummary } from '@platform/shared-types'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -45,8 +45,14 @@ export default function ProjectsPage() {
     queryKey: ['projects'],
     queryFn: () => api.get<Project[]>('/projects'),
   })
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: () => api.get<UserSummary>('/users/me'),
+  })
   const projects = projectsQuery.data ?? []
   const isLoading = projectsQuery.isLoading
+  const canCreateProject =
+    meQuery.data?.role === 'MODERATOR' || meQuery.data?.role === 'ADMIN'
 
   const { data: allTickets = [] } = useQuery({
     queryKey: ['tickets'],
@@ -114,12 +120,20 @@ export default function ProjectsPage() {
               <LayoutList className="h-4 w-4" />
             </Button>
           </div>
-          <Button onClick={() => setOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New Project
-          </Button>
+          {canCreateProject && (
+            <Button onClick={() => setOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              New Project
+            </Button>
+          )}
         </div>
       </div>
+
+      {!canCreateProject && !meQuery.isLoading && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-700">
+          Only moderators can create projects. Ask an admin to grant moderator access.
+        </div>
+      )}
 
       {projectsQuery.isError ? (
         <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4">
@@ -141,9 +155,11 @@ export default function ProjectsPage() {
           <p className="text-sm text-muted-foreground mt-1 mb-4">
             Create your first project to get started.
           </p>
-          <Button onClick={() => setOpen(true)} variant="outline">
-            Create project
-          </Button>
+          {canCreateProject && (
+            <Button onClick={() => setOpen(true)} variant="outline">
+              Create project
+            </Button>
+          )}
         </div>
       ) : view === 'cards' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -381,6 +397,11 @@ export default function ProjectsPage() {
               {createMutation.isPending ? 'Creating…' : 'Create project'}
             </Button>
           </DialogFooter>
+          {createMutation.isError && (
+            <p className="text-xs text-destructive mt-2">
+              {(createMutation.error as Error)?.message ?? 'Could not create project'}
+            </p>
+          )}
         </DialogContent>
       </Dialog>
     </div>

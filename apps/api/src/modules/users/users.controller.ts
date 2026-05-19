@@ -10,7 +10,7 @@ import {
   HttpStatus,
 } from '@nestjs/common'
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger'
-import { IsOptional, IsString, MinLength, IsInt, Min, Max } from 'class-validator'
+import { IsOptional, IsString, MinLength, IsInt, Min, Max, IsIn } from 'class-validator'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { UsersService } from './users.service'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
@@ -28,6 +28,12 @@ class CreatePersonalTokenDto {
   expiresInDays?: number
 }
 
+class UpdateUserRoleDto {
+  @IsString()
+  @IsIn(['USER', 'MODERATOR', 'ADMIN'])
+  role: 'USER' | 'MODERATOR' | 'ADMIN'
+}
+
 @ApiTags('users')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -35,10 +41,22 @@ class CreatePersonalTokenDto {
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @Get('pending')
+  @ApiOperation({ summary: 'Admin: list pending sign-up requests' })
+  findPending(@CurrentUser() user: User) {
+    return this.usersService.findPending(user.id)
+  }
+
   @Get()
   @ApiOperation({ summary: 'List all users' })
   findAll() {
     return this.usersService.findAll()
+  }
+
+  @Get('me')
+  @ApiOperation({ summary: 'Get current user profile' })
+  me(@CurrentUser() user: User) {
+    return this.usersService.findById(user.id)
   }
 
   @Get('me/tokens')
@@ -64,5 +82,28 @@ export class UsersController {
   @ApiOperation({ summary: 'Get user by ID' })
   findOne(@Param('id') id: string) {
     return this.usersService.findById(id)
+  }
+
+  @Post(':id/role')
+  @ApiOperation({ summary: 'Admin: update user role' })
+  updateRole(
+    @Param('id') id: string,
+    @Body() dto: UpdateUserRoleDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.usersService.updateRole(user.id, id, dto.role)
+  }
+
+  @Post(':id/approve')
+  @ApiOperation({ summary: 'Admin: approve a pending sign-up' })
+  approveUser(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.usersService.approveUser(user.id, id)
+  }
+
+  @Post(':id/reject')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Admin: reject and remove a pending sign-up' })
+  rejectUser(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.usersService.rejectUser(user.id, id)
   }
 }

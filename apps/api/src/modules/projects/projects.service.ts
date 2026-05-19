@@ -41,6 +41,14 @@ export class ProjectsService {
   ) {}
 
   async create(dto: CreateProjectDto, ownerId: string) {
+    const creator = await this.prisma.user.findUnique({
+      where: { id: ownerId },
+      select: { role: true },
+    })
+    if (!creator || (creator.role !== 'MODERATOR' && creator.role !== 'ADMIN')) {
+      throw new ForbiddenException('Only moderators can create projects')
+    }
+
     const existing = await this.prisma.project.findUnique({ where: { key: dto.key } })
     if (existing) throw new ConflictException(`A project with key '${dto.key}' already exists`)
 
@@ -106,10 +114,28 @@ export class ProjectsService {
 
   async addMember(projectId: string, email: string, role: string, requesterId: string) {
     const project = await this.findOne(projectId, requesterId)
-    if (project.ownerId !== requesterId) throw new ForbiddenException('Only the owner can add members')
 
-    const user = await this.prisma.user.findUnique({ where: { email } })
-    if (!user) throw new BadRequestException(`No user found with email '${email}'`)
+    // Only project owner, admins, or moderators can add members
+    const requester = await this.prisma.user.findUnique({
+      where: { id: requesterId },
+      select: { role: true },
+    })
+    const isOwner = project.ownerId === requesterId
+    const isPrivileged = requester?.role === 'ADMIN' || requester?.role === 'MODERATOR'
+    if (!isOwner && !isPrivileged) {
+      throw new ForbiddenException('Only the project owner, admins, or moderators can add members')
+    }
+
+    const user = await this.prisma.user.upsert({
+      where: { email },
+      update: {},
+      create: {
+        email,
+        name: null,
+        role: 'USER',
+        status: 'APPROVED',
+      },
+    })
     if (user.id === project.ownerId) throw new BadRequestException('Owner is already a member')
 
     const existing = await this.prisma.projectMember.findUnique({
@@ -122,12 +148,12 @@ export class ProjectsService {
       include: { user: { select: userSelect } },
     })
 
-    const requester = await this.prisma.user.findUnique({ where: { id: requesterId } })
+    const requesterFull = await this.prisma.user.findUnique({ where: { id: requesterId } })
     const appUrl = this.config.get<string>('DASHBOARD_URL') ?? 'http://localhost:3000'
     this.email
       .sendProjectInvitation({
         to: email,
-        inviterName: requester?.name ?? requester?.email ?? 'A teammate',
+        inviterName: requesterFull?.name ?? requesterFull?.email ?? 'A teammate',
         projectName: project.name,
         projectId: project.id,
         appUrl,

@@ -4,13 +4,16 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   FolderKanban,
-  Ticket,
   Server,
   Activity,
-  BarChart3,
+  Shield,
   ChevronRight,
 } from 'lucide-react'
+import { OvLogo } from '@/components/logo'
 import { cn } from '@/lib/utils'
+import { api } from '@/lib/api-client'
+import { useQuery } from '@tanstack/react-query'
+import type { UserSummary } from '@platform/shared-types'
 
 const navItems = [
   { href: '/projects', label: 'Projects', icon: FolderKanban },
@@ -20,15 +23,23 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const { data: me } = useQuery({
+    queryKey: ['me'],
+    queryFn: () => api.get<UserSummary>('/users/me'),
+  })
+
+  const items = me?.role === 'ADMIN'
+    ? [...navItems, { href: '/admin', label: 'Admin', icon: Shield }]
+    : navItems
 
   return (
     <aside className="w-60 flex-shrink-0 border-r bg-card flex flex-col">
       <div className="h-16 flex items-center px-5 border-b">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
-            P
+          <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center text-primary-foreground">
+            <OvLogo className="w-5 h-5" />
           </div>
-          <span className="font-semibold text-sm tracking-tight">Control Plane</span>
+          <span className="font-semibold text-sm tracking-tight">Overlord Tracker</span>
         </div>
       </div>
 
@@ -36,7 +47,7 @@ export function Sidebar() {
         <p className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">
           Platform
         </p>
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {items.map(({ href, label, icon: Icon }) => {
           const isActive =
             pathname === href || pathname.startsWith(href + '/')
           return (
@@ -62,7 +73,7 @@ export function Sidebar() {
 
       <div className="p-3 border-t">
         <p className="px-3 text-[10px] text-muted-foreground">
-          Platform Control Plane v0.1
+          Overlord Tracker v0.1
         </p>
       </div>
     </aside>

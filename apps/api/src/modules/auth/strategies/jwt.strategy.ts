@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common'
+import { Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common'
 import { PassportStrategy } from '@nestjs/passport'
 import { ExtractJwt, Strategy } from 'passport-jwt'
 import { ConfigService } from '@nestjs/config'
@@ -26,12 +26,24 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
-    const user = await this.prisma.user.findUnique({
+    let user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
     })
 
     if (!user) {
       throw new UnauthorizedException('User not found')
+    }
+
+    const adminEmail = this.config.get<string>('ADMIN_EMAIL')?.toLowerCase()
+    if (adminEmail && user.email.toLowerCase() === adminEmail && (user.role !== 'ADMIN' || user.status !== 'APPROVED')) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { role: 'ADMIN', status: 'APPROVED' },
+      })
+    }
+
+    if (user.status !== 'APPROVED') {
+      throw new ForbiddenException('Account pending approval')
     }
 
     return user

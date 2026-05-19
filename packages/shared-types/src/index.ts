@@ -5,12 +5,17 @@ export type ProjectStatus = 'ACTIVE' | 'ARCHIVED' | 'INACTIVE'
 export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'CANCELLED'
 export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 export type ServiceStatus = 'HEALTHY' | 'DEGRADED' | 'DOWN' | 'UNKNOWN'
+export type PlatformRole = 'USER' | 'MODERATOR' | 'ADMIN'
 
 export interface UserSummary {
   id: string
   name: string | null
   email: string
   image: string | null
+  role?: PlatformRole
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED'
+  /** True for the original admin account — cannot be demoted by other admins */
+  isProtected?: boolean
 }
 
 export interface Project {

@@ -18,7 +18,9 @@ import { AuthService } from './auth.service'
     }),
   ],
   controllers: [AuthController],
+  // EmailService is @Global(), no need to import EmailModule explicitly
   providers: [AuthService, JwtStrategy],
   exports: [JwtStrategy, PassportModule],
 })
 export class AuthModule {}
+

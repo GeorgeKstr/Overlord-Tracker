@@ -491,6 +491,11 @@ export default function ProjectDetailPage() {
     enabled: !!id,
   })
 
+  const { data: me } = useQuery({
+    queryKey: ['me'],
+    queryFn: () => api.get<{ id: string; role?: string }>('/users/me'),
+  })
+
   const { data: tickets = [], isLoading: loadingTickets } = useQuery({
     queryKey: ['tickets', { projectId: id }],
     queryFn: () => api.get<TicketType[]>(`/tickets?projectId=${id}`),
@@ -1134,9 +1139,11 @@ export default function ProjectDetailPage() {
         {/* Members/collaborators tab */}
         <TabsContent value="members" className="mt-4">
           <div className="flex justify-end mb-3">
-            <Button size="sm" onClick={() => setAddMemberOpen(true)}>
-              <UserPlus className="h-4 w-4 mr-2" />Add collaborator
-            </Button>
+            {(me?.id === project.ownerId || me?.role === 'ADMIN' || me?.role === 'MODERATOR') && (
+              <Button size="sm" onClick={() => setAddMemberOpen(true)}>
+                <UserPlus className="h-4 w-4 mr-2" />Add collaborator
+              </Button>
+            )}
           </div>
 
           {/* Owner row */}
