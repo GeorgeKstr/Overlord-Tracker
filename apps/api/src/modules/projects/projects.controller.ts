@@ -122,13 +122,13 @@ export class ProjectsController {
   @Get()
   @ApiOperation({ summary: 'List accessible projects' })
   findAll(@CurrentUser() user: User) {
-    return this.projectsService.findAll(user.id)
+    return this.projectsService.findAll(user.id, user.role)
   }
 
   @Get('agent-index')
   @ApiOperation({ summary: 'List accessible projects with API links for agent automation' })
   getAgentIndex(@CurrentUser() user: User) {
-    return this.projectsService.getAgentIndex(user.id)
+    return this.projectsService.getAgentIndex(user.id, user.role)
   }
 
   @Get(':id/context')

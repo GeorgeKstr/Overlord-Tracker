@@ -40,35 +40,45 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     signIn: async ({ user }) => {
-      // Promote the configured admin on every sign-in
+      // Promote the configured admin on every sign-in (Google + Credentials).
       const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase()
       if (adminEmail && user.email?.toLowerCase() === adminEmail && user.id) {
         await prisma.user.update({
           where: { id: user.id },
           data: { role: 'ADMIN', status: 'APPROVED' },
-        }).catch(() => { /* no-op if row doesn't exist yet on very first sign-in */ })
+        }).catch(() => {
+          // Swallow: on the very first OAuth sign-in the PrismaAdapter may not
+          // have committed the row yet.  The jwt callback below enforces
+          // ADMIN/APPROVED in the token regardless.
+        })
       }
       return true
     },
     jwt: async ({ token, user }) => {
       if (user) {
-        // Initial sign-in: set sub first, then read fresh DB state
         token.sub = user.id
-        const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase()
-        if (adminEmail && user.email?.toLowerCase() === adminEmail) {
-          // Belt-and-suspenders: guarantee admin token without relying on DB re-read
-          token.status = 'APPROVED'
-          token.role = 'ADMIN'
-        } else {
-          const dbUser = await prisma.user.findUnique({
-            where: { id: user.id },
-            select: { status: true, role: true },
-          })
-          token.status = dbUser?.status ?? 'PENDING'
-          token.role = dbUser?.role ?? 'USER'
-        }
+      }
+
+      // Enforce admin override on every sign-in AND every subsequent refresh.
+      // This keeps admin rights alive regardless of DB state or session age.
+      const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase()
+      const tokenEmail = (token.email as string | undefined)?.toLowerCase()
+      if (adminEmail && tokenEmail === adminEmail) {
+        token.status = 'APPROVED'
+        token.role = 'ADMIN'
+        return token
+      }
+
+      if (user) {
+        // Initial sign-in: read role/status from DB for non-admin users
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { status: true, role: true },
+        })
+        token.status = dbUser?.status ?? 'PENDING'
+        token.role = dbUser?.role ?? 'USER'
       } else if (token.status !== 'APPROVED' && token.sub) {
-        // Token refresh: re-check so approved users aren't stuck
+        // Token refresh: re-check so approved users aren't stuck as PENDING
         const dbUser = await prisma.user.findUnique({
           where: { id: token.sub as string },
           select: { status: true, role: true },

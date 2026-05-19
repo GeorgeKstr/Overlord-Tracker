@@ -58,8 +58,15 @@ export class ProjectsService {
     })
   }
 
-  /** Returns projects accessible to the given user (owned or member). */
-  findAll(userId: string) {
+  /** Returns projects accessible to the given user (owned or member).
+   * ADMIN users see every project. */
+  findAll(userId: string, userRole?: string) {
+    if (userRole === 'ADMIN') {
+      return this.prisma.project.findMany({
+        include: projectInclude,
+        orderBy: { createdAt: 'desc' },
+      })
+    }
     return this.prisma.project.findMany({
       where: {
         OR: [
@@ -73,8 +80,12 @@ export class ProjectsService {
   }
 
   async findOne(id: string, userId: string) {
-    const project = await this.prisma.project.findUnique({ where: { id }, include: projectInclude })
+    const [project, requestingUser] = await Promise.all([
+      this.prisma.project.findUnique({ where: { id }, include: projectInclude }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
+    ])
     if (!project) throw new NotFoundException(`Project ${id} not found`)
+    if (requestingUser?.role === 'ADMIN') return project
     const hasAccess =
       project.ownerId === userId ||
       project.members.some((m) => m.userId === userId)
@@ -83,8 +94,12 @@ export class ProjectsService {
   }
 
   async findByKey(key: string, userId: string) {
-    const project = await this.prisma.project.findUnique({ where: { key }, include: projectInclude })
+    const [project, requestingUser] = await Promise.all([
+      this.prisma.project.findUnique({ where: { key }, include: projectInclude }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
+    ])
     if (!project) throw new NotFoundException(`Project with key '${key}' not found`)
+    if (requestingUser?.role === 'ADMIN') return project
     const hasAccess = project.ownerId === userId || project.members.some((m) => m.userId === userId)
     if (!hasAccess) throw new ForbiddenException('You do not have access to this project')
     return project
@@ -96,8 +111,9 @@ export class ProjectsService {
   }
 
   async remove(id: string, userId: string) {
-    const project = await this.findOne(id, userId)
-    if (project.ownerId !== userId) throw new ForbiddenException('Only the owner can delete a project')
+    // findOne already handles access: ADMIN can access any project,
+    // others must be owner or collaborator.  All three groups may delete.
+    await this.findOne(id, userId)
     return this.prisma.project.delete({ where: { id } })
   }
 
@@ -213,8 +229,8 @@ export class ProjectsService {
     }
   }
 
-  async getAgentIndex(userId: string) {
-    const projects = await this.findAll(userId)
+  async getAgentIndex(userId: string, userRole?: string) {
+    const projects = await this.findAll(userId, userRole)
     return {
       projects: projects.map((project) => ({
         id: project.id,
