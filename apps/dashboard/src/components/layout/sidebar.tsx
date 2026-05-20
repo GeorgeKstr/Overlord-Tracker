@@ -38,6 +38,14 @@ export function Sidebar() {
     queryFn: () => api.get<UserSummary>('/users/me'),
   })
 
+  const { data: myTicketsData } = useQuery({
+    queryKey: ['my-tickets-count', me?.id],
+    queryFn: () => api.get<{ total: number }>(`/tickets?assigneeId=${me!.id}&pageSize=1`),
+    enabled: !!me?.id,
+    staleTime: 60_000,
+  })
+  const myTicketTotal = myTicketsData?.total ?? 0
+
   useEffect(() => {
     setOverlordBaseUrl(getStoredOverlordBaseUrl())
     const refresh = () => setOverlordBaseUrl(getStoredOverlordBaseUrl())
@@ -98,6 +106,7 @@ export function Sidebar() {
         {items.map(({ href, label, icon: Icon }) => {
           const isActive =
             pathname === href || pathname.startsWith(href + '/')
+          const badge = href === '/my-tickets' && myTicketTotal > 0 ? myTicketTotal : null
           return (
             <Link
               key={href}
@@ -113,7 +122,12 @@ export function Sidebar() {
             >
               <Icon className="h-4 w-4 flex-shrink-0" />
               {!collapsed && label}
-              {!collapsed && isActive && (
+              {!collapsed && badge !== null && (
+                <span className="ml-auto flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary/15 px-1 text-[11px] font-semibold text-primary">
+                  {badge > 99 ? '99+' : badge}
+                </span>
+              )}
+              {!collapsed && isActive && badge === null && (
                 <ChevronRight className="h-3 w-3 ml-auto opacity-50" />
               )}
             </Link>

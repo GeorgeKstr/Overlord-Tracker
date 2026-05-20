@@ -82,7 +82,8 @@ export default function TicketsPage() {
   const [serviceFilter, setServiceFilter] = useState<string>('ALL')
   const [effortFilter, setEffortFilter] = useState<string>('ALL')
   const [assignedToMe, setAssignedToMe] = useState(false)
-  const [untestedOnly, setUntestedOnly] = useState(false)
+  const [testedFilter, setTestedFilter] = useState<string>('ALL')
+  const [includeSubtickets, setIncludeSubtickets] = useState(false)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState<number>(() => {
@@ -108,7 +109,7 @@ export default function TicketsPage() {
   })
 
   const { data: ticketsPage, isLoading } = useQuery({
-    queryKey: ['tickets', { projectId: id, page, pageSize, statusFilter, priorityFilter, serviceFilter, effortFilter, assignedToMe, search, me: session?.user?.id }],
+    queryKey: ['tickets', { projectId: id, page, pageSize, statusFilter, priorityFilter, serviceFilter, effortFilter, assignedToMe, testedFilter, includeSubtickets, search, me: session?.user?.id }],
     queryFn: () => {
       const params = new URLSearchParams({
         projectId: id,
@@ -120,7 +121,9 @@ export default function TicketsPage() {
       if (serviceFilter !== 'ALL') params.set('serviceId', serviceFilter)
       if (effortFilter !== 'ALL') params.set('effort', effortFilter)
       if (assignedToMe && session?.user?.id) params.set('assigneeId', session.user.id)
-      if (untestedOnly) params.set('tested', 'false')
+      if (testedFilter === 'TESTED') params.set('tested', 'true')
+      if (testedFilter === 'UNTESTED') params.set('tested', 'false')
+      if (includeSubtickets) params.set('includeSubtickets', 'true')
       if (search.trim()) params.set('q', search.trim())
       return api.get<PaginatedResponse<Ticket>>(`/tickets?${params.toString()}`)
     },
@@ -180,7 +183,7 @@ export default function TicketsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [statusFilter, priorityFilter, serviceFilter, effortFilter, assignedToMe, untestedOnly, search])
+  }, [statusFilter, priorityFilter, serviceFilter, effortFilter, assignedToMe, testedFilter, includeSubtickets, search])
 
   useEffect(() => {
     if (!ticketsPage) return
@@ -195,7 +198,6 @@ export default function TicketsPage() {
   }, {} as Record<string, number>)
 
   const assignedToMeCount = ticketItems.filter((t) => t.assigneeId === session?.user?.id).length
-  const untestedCount = ticketItems.filter((t) => !t.tested).length
 
   // Build assignee options: project owner + members
   const assigneeOptions: UserSummary[] = []
@@ -322,7 +324,7 @@ export default function TicketsPage() {
           )}
         >
           <UserCheck className="h-3.5 w-3.5" />
-          Assigned to me
+          On me
           <span className={cn(
             'rounded-full px-1.5 py-0.5 text-xs leading-none',
             assignedToMe ? 'bg-background/20' : 'bg-muted',
@@ -330,24 +332,30 @@ export default function TicketsPage() {
             {assignedToMeCount}
           </span>
         </button>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Tested:</span>
+          <Select value={testedFilter} onValueChange={(v) => { setTestedFilter(v); setPage(1) }}>
+            <SelectTrigger className="h-8 w-[130px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All</SelectItem>
+              <SelectItem value="TESTED">Tested</SelectItem>
+              <SelectItem value="UNTESTED">Untested</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <button
           type="button"
-          onClick={() => setUntestedOnly((v) => !v)}
+          onClick={() => setIncludeSubtickets((v) => !v)}
           className={cn(
             'inline-flex items-center gap-1.5 h-8 rounded-md border px-3 text-sm font-medium transition-colors shrink-0',
-            untestedOnly
+            includeSubtickets
               ? 'bg-primary text-primary-foreground border-primary'
               : 'border-input bg-background text-muted-foreground hover:bg-muted',
           )}
         >
-          <CheckCircle2 className="h-3.5 w-3.5" />
-          Show untested
-          <span className={cn(
-            'rounded-full px-1.5 py-0.5 text-xs leading-none',
-            untestedOnly ? 'bg-background/20' : 'bg-muted',
-          )}>
-            {untestedCount}
-          </span>
+          Subtickets
         </button>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Priority:</span>

@@ -5,7 +5,6 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import {
-  CheckCircle2,
   Search,
   X,
 } from 'lucide-react'
@@ -47,7 +46,8 @@ export default function MyTicketsPage() {
   const [projectFilter, setProjectFilter] = useState('ALL')
   const [serviceFilter, setServiceFilter] = useState('ALL')
   const [effortFilter, setEffortFilter] = useState('ALL')
-  const [untestedOnly, setUntestedOnly] = useState(false)
+  const [testedFilter, setTestedFilter] = useState('ALL')
+  const [includeSubtickets, setIncludeSubtickets] = useState(false)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState<number>(() => {
@@ -62,10 +62,10 @@ export default function MyTicketsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [statusFilter, priorityFilter, projectFilter, serviceFilter, effortFilter, untestedOnly, search])
+  }, [statusFilter, priorityFilter, projectFilter, serviceFilter, effortFilter, testedFilter, includeSubtickets, search])
 
   const ticketsQuery = useQuery({
-    queryKey: ['my-tickets', session?.user?.id, { page, pageSize, statusFilter, priorityFilter, projectFilter, serviceFilter, effortFilter, untestedOnly, search }],
+    queryKey: ['my-tickets', session?.user?.id, { page, pageSize, statusFilter, priorityFilter, projectFilter, serviceFilter, effortFilter, testedFilter, includeSubtickets, search }],
     queryFn: () => {
       const params = new URLSearchParams({
         assigneeId: session!.user!.id,
@@ -77,16 +77,15 @@ export default function MyTicketsPage() {
       if (projectFilter !== 'ALL') params.set('projectId', projectFilter)
       if (serviceFilter !== 'ALL') params.set('serviceId', serviceFilter)
       if (effortFilter !== 'ALL') params.set('effort', effortFilter)
-      if (untestedOnly) params.set('tested', 'false')
+      if (testedFilter === 'TESTED') params.set('tested', 'true')
+      if (testedFilter === 'UNTESTED') params.set('tested', 'false')
+      if (includeSubtickets) params.set('includeSubtickets', 'true')
       if (search.trim()) params.set('q', search.trim())
       return api.get<PaginatedResponse<Ticket>>(`/tickets?${params.toString()}`)
     },
     enabled: !!session?.user?.id,
-    staleTime: 0,
-    refetchOnMount: 'always',
+    staleTime: 30_000,
     refetchOnWindowFocus: true,
-    refetchInterval: 10000,
-    refetchIntervalInBackground: true,
   })
 
   const tickets = ticketsQuery.data?.items ?? []
@@ -116,7 +115,6 @@ export default function MyTicketsPage() {
   ).sort((a, b) => a.name.localeCompare(b.name))
 
   const filtered = tickets
-  const untestedCount = tickets.filter((t) => !t.tested).length
 
   const statusCounts = ALL_STATUSES.reduce((acc, s) => {
     acc[s] = tickets.filter((t) => t.status === s).length
@@ -275,24 +273,30 @@ export default function MyTicketsPage() {
           </Select>
         </div>
 
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Tested:</span>
+          <Select value={testedFilter} onValueChange={(v) => { setTestedFilter(v); setPage(1) }}>
+            <SelectTrigger className="h-8 w-[130px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All</SelectItem>
+              <SelectItem value="TESTED">Tested</SelectItem>
+              <SelectItem value="UNTESTED">Untested</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <button
           type="button"
-          onClick={() => setUntestedOnly((v) => !v)}
+          onClick={() => setIncludeSubtickets((v) => !v)}
           className={cn(
             'inline-flex items-center gap-1.5 h-8 rounded-md border px-3 text-sm font-medium transition-colors',
-            untestedOnly
+            includeSubtickets
               ? 'bg-primary text-primary-foreground border-primary'
               : 'border-input bg-background text-muted-foreground hover:bg-muted',
           )}
         >
-          <CheckCircle2 className="h-3.5 w-3.5" />
-          Show untested
-          <span className={cn(
-            'rounded-full px-1.5 py-0.5 text-xs leading-none',
-            untestedOnly ? 'bg-background/20' : 'bg-muted',
-          )}>
-            {untestedCount}
-          </span>
+          Subtickets
         </button>
 
       </div>
