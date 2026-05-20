@@ -1,4 +1,8 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+function getApiBase(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL
+  if (process.env.NODE_ENV === 'development') return 'http://localhost:3001'
+  throw new Error('NEXT_PUBLIC_API_URL is not configured for production')
+}
 
 async function getApiToken(): Promise<string> {
   const res = await fetch('/api/auth/token')
@@ -11,15 +15,21 @@ async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+  const apiBase = getApiBase()
   const token = await getApiToken()
-  const res = await fetch(`${API_BASE}/api${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...options.headers,
-    },
-  })
+  let res: Response
+  try {
+    res = await fetch(`${apiBase}/api${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...options.headers,
+      },
+    })
+  } catch {
+    throw new Error(`Cannot reach API at ${apiBase}. Check NEXT_PUBLIC_API_URL and API CORS settings.`)
+  }
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: res.statusText }))

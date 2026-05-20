@@ -257,7 +257,7 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {!canCreateProject && !meQuery.isLoading && (
+      {!canCreateProject && meQuery.isSuccess && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-700">
           Only moderators can create projects. Ask an admin to grant moderator access.
         </div>
