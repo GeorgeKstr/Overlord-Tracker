@@ -807,11 +807,14 @@ export default function ProjectDetailPage() {
 
   const toInitials = (nameOrEmail: string) => nameOrEmail.slice(0, 2).toUpperCase()
   const doneTickets = tickets.filter((t) => t.status === 'DONE').length
+  const testedDoneTickets = tickets.filter((t) => t.status === 'DONE' && t.tested).length
+  const doneUntestedTickets = Math.max(0, doneTickets - testedDoneTickets)
   const inReviewTickets = tickets.filter((t) => t.status === 'IN_REVIEW').length
   const totalTickets = tickets.length
-  const donePct = totalTickets === 0 ? 0 : Math.round((doneTickets / totalTickets) * 100)
+  const donePct = totalTickets === 0 ? 0 : Math.round((doneUntestedTickets / totalTickets) * 100)
+  const testedPct = totalTickets === 0 ? 0 : Math.round((testedDoneTickets / totalTickets) * 100)
   const inReviewPct = totalTickets === 0 ? 0 : Math.round((inReviewTickets / totalTickets) * 100)
-  const progressPct = donePct + inReviewPct
+  const progressPct = donePct + testedPct + inReviewPct
   const historyBySection = knowledgeHistory.reduce<Record<KnowledgeField, ProjectKnowledgeVersion[]>>(
     (acc, entry) => {
       const section = entry.section as KnowledgeField
@@ -1014,11 +1017,12 @@ export default function ProjectDetailPage() {
               </div>
               <div className="h-2 rounded-full bg-muted overflow-hidden">
                 <div className="h-full flex">
-                  <div className="h-full bg-primary transition-all" style={{ width: `${donePct}%` }} />
+                  <div className="h-full bg-sky-400 transition-all" style={{ width: `${donePct}%` }} />
+                  <div className="h-full bg-emerald-500 transition-all" style={{ width: `${testedPct}%` }} />
                   <div className="h-full bg-amber-500 transition-all" style={{ width: `${inReviewPct}%` }} />
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">{progressPct}% complete ({doneTickets} done{inReviewTickets > 0 ? `, ${inReviewTickets} in review` : ''})</p>
+              <p className="text-xs text-muted-foreground">{progressPct}% complete ({doneTickets} done, {testedDoneTickets} tested{inReviewTickets > 0 ? `, ${inReviewTickets} in review` : ''})</p>
             </CardContent>
           </Card>
         </Link>

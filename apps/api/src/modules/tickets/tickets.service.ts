@@ -50,6 +50,7 @@ export class TicketsService {
       assigneeId?: string
       serviceId?: string
       effort?: string
+      tested?: string
       q?: string
       includeSubtickets?: boolean
       parentTicketId?: string | null
@@ -72,6 +73,13 @@ export class TicketsService {
         : {}),
       ...(filters?.effort
         ? (filters.effort === '__none__' ? { effort: null } : { effort: filters.effort as any })
+        : {}),
+      ...(filters?.tested !== undefined
+        ? (String(filters.tested).toLowerCase() === 'true'
+            ? { tested: true }
+            : String(filters.tested).toLowerCase() === 'false'
+              ? { tested: false }
+              : {})
         : {}),
       ...(filters?.q
         ? {
@@ -139,6 +147,7 @@ export class TicketsService {
       assigneeId?: string
       serviceId?: string
       effort?: string
+      tested?: string
       q?: string
       limit?: number
       includeSubtickets?: boolean
@@ -170,6 +179,7 @@ export class TicketsService {
       assigneeId?: string
       serviceId?: string
       effort?: string
+      tested?: string
       q?: string
       limit?: number
       includeSubtickets?: boolean
@@ -203,6 +213,7 @@ export class TicketsService {
       assigneeId?: string
       serviceId?: string
       effort?: string
+      tested?: string
       q?: string
       page?: number
       pageSize?: number
@@ -251,6 +262,7 @@ export class TicketsService {
       assigneeId?: string
       serviceId?: string
       effort?: string
+      tested?: string
       q?: string
       page?: number
       pageSize?: number

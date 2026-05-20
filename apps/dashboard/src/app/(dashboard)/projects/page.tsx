@@ -158,20 +158,25 @@ export default function ProjectsPage() {
   }
 
   const progressByProject = allTickets.reduce((acc, t) => {
-    const entry = acc[t.projectId] ?? { done: 0, inReview: 0, total: 0 }
+    const entry = acc[t.projectId] ?? { done: 0, testedDone: 0, inReview: 0, total: 0 }
     entry.total += 1
-    if (t.status === 'DONE') entry.done += 1
+    if (t.status === 'DONE') {
+      entry.done += 1
+      if (t.tested) entry.testedDone += 1
+    }
     if (t.status === 'IN_REVIEW') entry.inReview += 1
     acc[t.projectId] = entry
     return acc
-  }, {} as Record<string, { done: number; inReview: number; total: number }>)
+  }, {} as Record<string, { done: number; testedDone: number; inReview: number; total: number }>)
 
   const getProgress = (projectId: string) => {
-    const entry = progressByProject[projectId] ?? { done: 0, inReview: 0, total: 0 }
+    const entry = progressByProject[projectId] ?? { done: 0, testedDone: 0, inReview: 0, total: 0 }
+    const doneUntested = Math.max(0, entry.done - entry.testedDone)
     const pct = entry.total === 0 ? 0 : Math.round((entry.done / entry.total) * 100)
-    const donePct = entry.total === 0 ? 0 : (entry.done / entry.total) * 100
+    const donePct = entry.total === 0 ? 0 : (doneUntested / entry.total) * 100
+    const testedPct = entry.total === 0 ? 0 : (entry.testedDone / entry.total) * 100
     const inReviewPct = entry.total === 0 ? 0 : (entry.inReview / entry.total) * 100
-    return { ...entry, pct, donePct, inReviewPct }
+    return { ...entry, doneUntested, pct, donePct, testedPct, inReviewPct }
   }
 
   const copyLink = async (kind: string, url: string) => {
@@ -386,11 +391,12 @@ export default function ProjectsPage() {
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>Progress</span>
-                    <span>{progress.done}/{progress.total} · {progress.pct}%</span>
+                    <span>{progress.done}/{progress.total} · {progress.pct}% ({progress.testedDone} tested)</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                     <div className="h-full flex">
-                      <div className="h-full bg-primary" style={{ width: `${progress.donePct}%` }} />
+                      <div className="h-full bg-sky-400" style={{ width: `${progress.donePct}%` }} />
+                      <div className="h-full bg-emerald-500" style={{ width: `${progress.testedPct}%` }} />
                       <div className="h-full bg-amber-500" style={{ width: `${progress.inReviewPct}%` }} />
                     </div>
                   </div>
@@ -489,12 +495,13 @@ export default function ProjectsPage() {
                 <span className="text-xs text-muted-foreground">{project._count?.services ?? 0}</span>
                 <div className="hidden md:block min-w-0">
                   <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                    <span>{progress.done}/{progress.total}</span>
+                    <span>{progress.done}/{progress.total} ({progress.testedDone} tested)</span>
                     <span>{progress.pct}%</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                     <div className="h-full flex">
-                      <div className="h-full bg-primary" style={{ width: `${progress.donePct}%` }} />
+                      <div className="h-full bg-sky-400" style={{ width: `${progress.donePct}%` }} />
+                      <div className="h-full bg-emerald-500" style={{ width: `${progress.testedPct}%` }} />
                       <div className="h-full bg-amber-500" style={{ width: `${progress.inReviewPct}%` }} />
                     </div>
                   </div>

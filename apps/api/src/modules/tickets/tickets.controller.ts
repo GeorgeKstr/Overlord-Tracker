@@ -74,6 +74,10 @@ class FindTicketsQueryDto {
   @IsOptional()
   @IsString()
   pageSize?: string
+
+  @IsOptional()
+  @IsString()
+  tested?: string
 }
 
 @ApiTags('tickets')
@@ -99,6 +103,7 @@ export class TicketsController {
   @ApiQuery({ name: 'includeSubtickets', required: false, description: 'When true, include subtickets in results.' })
   @ApiQuery({ name: 'serviceId', required: false })
   @ApiQuery({ name: 'effort', required: false })
+  @ApiQuery({ name: 'tested', required: false, description: 'Filter tested flag (true/false)' })
   @ApiQuery({ name: 'q', required: false, description: 'Search title/description' })
   @ApiQuery({ name: 'limit', required: false, description: 'Max number of results' })
   @ApiQuery({ name: 'page', required: false, description: '1-based page index' })
@@ -117,6 +122,7 @@ export class TicketsController {
       assigneeId: query.assigneeId,
       serviceId: query.serviceId,
       effort: query.effort,
+      tested: query.tested,
       q: query.q,
       limit: query.limit ? Number(query.limit) : undefined,
       includeSubtickets,

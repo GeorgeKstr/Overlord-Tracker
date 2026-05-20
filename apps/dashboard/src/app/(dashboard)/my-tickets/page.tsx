@@ -47,6 +47,7 @@ export default function MyTicketsPage() {
   const [projectFilter, setProjectFilter] = useState('ALL')
   const [serviceFilter, setServiceFilter] = useState('ALL')
   const [effortFilter, setEffortFilter] = useState('ALL')
+  const [untestedOnly, setUntestedOnly] = useState(false)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState<number>(() => {
@@ -61,10 +62,10 @@ export default function MyTicketsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [statusFilter, priorityFilter, projectFilter, serviceFilter, effortFilter, search])
+  }, [statusFilter, priorityFilter, projectFilter, serviceFilter, effortFilter, untestedOnly, search])
 
   const ticketsQuery = useQuery({
-    queryKey: ['my-tickets', session?.user?.id, { page, pageSize, statusFilter, priorityFilter, projectFilter, serviceFilter, effortFilter, search }],
+    queryKey: ['my-tickets', session?.user?.id, { page, pageSize, statusFilter, priorityFilter, projectFilter, serviceFilter, effortFilter, untestedOnly, search }],
     queryFn: () => {
       const params = new URLSearchParams({
         assigneeId: session!.user!.id,
@@ -76,6 +77,7 @@ export default function MyTicketsPage() {
       if (projectFilter !== 'ALL') params.set('projectId', projectFilter)
       if (serviceFilter !== 'ALL') params.set('serviceId', serviceFilter)
       if (effortFilter !== 'ALL') params.set('effort', effortFilter)
+      if (untestedOnly) params.set('tested', 'false')
       if (search.trim()) params.set('q', search.trim())
       return api.get<PaginatedResponse<Ticket>>(`/tickets?${params.toString()}`)
     },
@@ -114,6 +116,7 @@ export default function MyTicketsPage() {
   ).sort((a, b) => a.name.localeCompare(b.name))
 
   const filtered = tickets
+  const untestedCount = tickets.filter((t) => !t.tested).length
 
   const statusCounts = ALL_STATUSES.reduce((acc, s) => {
     acc[s] = tickets.filter((t) => t.status === s).length
@@ -271,6 +274,26 @@ export default function MyTicketsPage() {
             </SelectContent>
           </Select>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setUntestedOnly((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-1.5 h-8 rounded-md border px-3 text-sm font-medium transition-colors',
+            untestedOnly
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'border-input bg-background text-muted-foreground hover:bg-muted',
+          )}
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Show untested
+          <span className={cn(
+            'rounded-full px-1.5 py-0.5 text-xs leading-none',
+            untestedOnly ? 'bg-background/20' : 'bg-muted',
+          )}>
+            {untestedCount}
+          </span>
+        </button>
 
       </div>
 

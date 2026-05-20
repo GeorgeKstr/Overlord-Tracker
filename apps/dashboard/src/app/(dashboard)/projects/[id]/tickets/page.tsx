@@ -82,6 +82,7 @@ export default function TicketsPage() {
   const [serviceFilter, setServiceFilter] = useState<string>('ALL')
   const [effortFilter, setEffortFilter] = useState<string>('ALL')
   const [assignedToMe, setAssignedToMe] = useState(false)
+  const [untestedOnly, setUntestedOnly] = useState(false)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState<number>(() => {
@@ -119,6 +120,7 @@ export default function TicketsPage() {
       if (serviceFilter !== 'ALL') params.set('serviceId', serviceFilter)
       if (effortFilter !== 'ALL') params.set('effort', effortFilter)
       if (assignedToMe && session?.user?.id) params.set('assigneeId', session.user.id)
+      if (untestedOnly) params.set('tested', 'false')
       if (search.trim()) params.set('q', search.trim())
       return api.get<PaginatedResponse<Ticket>>(`/tickets?${params.toString()}`)
     },
@@ -178,7 +180,7 @@ export default function TicketsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [statusFilter, priorityFilter, serviceFilter, effortFilter, assignedToMe, search])
+  }, [statusFilter, priorityFilter, serviceFilter, effortFilter, assignedToMe, untestedOnly, search])
 
   useEffect(() => {
     if (!ticketsPage) return
@@ -193,6 +195,7 @@ export default function TicketsPage() {
   }, {} as Record<string, number>)
 
   const assignedToMeCount = ticketItems.filter((t) => t.assigneeId === session?.user?.id).length
+  const untestedCount = ticketItems.filter((t) => !t.tested).length
 
   // Build assignee options: project owner + members
   const assigneeOptions: UserSummary[] = []
@@ -325,6 +328,25 @@ export default function TicketsPage() {
             assignedToMe ? 'bg-background/20' : 'bg-muted',
           )}>
             {assignedToMeCount}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setUntestedOnly((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-1.5 h-8 rounded-md border px-3 text-sm font-medium transition-colors shrink-0',
+            untestedOnly
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'border-input bg-background text-muted-foreground hover:bg-muted',
+          )}
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Show untested
+          <span className={cn(
+            'rounded-full px-1.5 py-0.5 text-xs leading-none',
+            untestedOnly ? 'bg-background/20' : 'bg-muted',
+          )}>
+            {untestedCount}
           </span>
         </button>
         <div className="flex items-center gap-2">
