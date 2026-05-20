@@ -1,0 +1,22 @@
+# Dependencies - let Docker install these cleanly
+node_modules
+**/node_modules
+
+# Build outputs
+apps/api/dist
+apps/dashboard/.next
+**/.turbo
+
+# Environment files - never bake these into the image
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Git
+.git
+.gitignore
+
+# Misc
+*.md
+.DS_Store
