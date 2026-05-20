@@ -32,6 +32,40 @@ const ticketInclude = {
   },
 } as const
 
+const AGENT_EXECUTION_PROTOCOL = {
+  version: '1.0',
+  goal: 'Token permissions must mirror user permissions. Never perform actions the user could not perform in the UI.',
+  workDecomposition: {
+    epicRule: 'Large features must be created as Epic tickets first.',
+    subTicketRule: 'Epic implementation work must be decomposed into child sub-tickets with specific deliverables.',
+    effortBias: 'Prefer XS/S/M child tickets. Avoid L/XL unless unavoidable.',
+  },
+  ticketSelection: {
+    whenUnspecified: [
+      'Only consider tickets in accessible projects and exclude DONE/CANCELLED.',
+      'First prefer IN_PROGRESS tickets already assigned to the acting user.',
+      'If multiple candidates remain: priority (CRITICAL>HIGH>MEDIUM>LOW), then smallest effort, then oldest updated.',
+      'If blocked, record blocker context and pick the next ranked candidate.',
+      'If no suitable ticket exists, create an Epic and immediately create child sub-tickets before starting work.',
+      'Before execution, state selected ticket ID and one-line reason.',
+    ],
+  },
+  apiSpecPolicy: {
+    sourceOfTruth: 'Per-service API specs are the source of truth.',
+    aggregation: 'Project-level apiSpec must be generated from service-level specs.',
+    updateOrder: [
+      'Update service specs first.',
+      'Then update project apiSpec as composed output.',
+    ],
+  },
+  knowledgeUpdateOrder: ['roadmap', 'entityGraph', 'readmeMd', 'apiSpec'],
+  safety: [
+    'Stop and report when access is forbidden.',
+    'Do not perform cross-project mutations without access.',
+    'Do not mutate unrelated tickets/services/members.',
+  ],
+} as const
+
 @Injectable()
 export class ProjectsService {
   constructor(
@@ -322,6 +356,7 @@ export class ProjectsService {
         'POST /tickets body must include projectId and title',
         'Knowledge ingestion is API-first via /projects/{id}/knowledge/{section}/ingest',
       ],
+      protocol: AGENT_EXECUTION_PROTOCOL,
     }
   }
 
@@ -354,6 +389,7 @@ export class ProjectsService {
         'All routes require Authorization: Bearer <JWT_OR_PERSONAL_TOKEN>',
         'Use /projects/{id}/context to fetch project + knowledge + filtered tickets in one call',
       ],
+      protocol: AGENT_EXECUTION_PROTOCOL,
     }
   }
 
@@ -417,6 +453,7 @@ export class ProjectsService {
         tickets: `/tickets?projectId=${projectId}`,
         history: `/projects/${projectId}/knowledge/history`,
       },
+      protocol: AGENT_EXECUTION_PROTOCOL,
     }
   }
 
