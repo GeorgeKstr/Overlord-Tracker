@@ -1,0 +1,10 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "apps/dashboard/Dockerfile"
+
+[deploy]
+startCommand = "node apps/dashboard/server.js"
+healthcheckPath = "/"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
