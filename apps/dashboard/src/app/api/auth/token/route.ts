@@ -2,10 +2,14 @@ import { getToken } from 'next-auth/jwt'
 import { NextRequest, NextResponse } from 'next/server'
 import * as jose from 'jose'
 
-const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!)
+const signingSecret = process.env.JWT_SECRET ?? process.env.NEXTAUTH_SECRET
 
 // Returns an API-compatible HS256 JWT for NestJS API Bearer auth.
 export async function GET(request: NextRequest) {
+  if (!signingSecret) {
+    return NextResponse.json({ error: 'JWT_SECRET is not configured' }, { status: 500 })
+  }
+
   const sessionToken = await getToken({
     req: request,
     secret: process.env.NEXTAUTH_SECRET!,
@@ -24,7 +28,7 @@ export async function GET(request: NextRequest) {
     .setSubject(sessionToken.sub)
     .setIssuedAt()
     .setExpirationTime('7d')
-    .sign(secret)
+    .sign(new TextEncoder().encode(signingSecret))
 
   return NextResponse.json({ token })
 }
