@@ -33,6 +33,14 @@ class FindTicketsQueryDto {
 
   @IsOptional()
   @IsString()
+  parentTicketId?: string
+
+  @IsOptional()
+  @IsString()
+  includeSubtickets?: string
+
+  @IsOptional()
+  @IsString()
   status?: string
 
   @IsOptional()
@@ -87,6 +95,8 @@ export class TicketsController {
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'priority', required: false })
   @ApiQuery({ name: 'assigneeId', required: false })
+  @ApiQuery({ name: 'parentTicketId', required: false, description: 'Filter by exact parent ticket id. Use "null" for top-level only.' })
+  @ApiQuery({ name: 'includeSubtickets', required: false, description: 'When true, include subtickets in results.' })
   @ApiQuery({ name: 'serviceId', required: false })
   @ApiQuery({ name: 'effort', required: false })
   @ApiQuery({ name: 'q', required: false, description: 'Search title/description' })
@@ -95,6 +105,12 @@ export class TicketsController {
   @ApiQuery({ name: 'pageSize', required: false, description: 'Page size (1-100)' })
   findByProject(@Query() query: FindTicketsQueryDto, @CurrentUser() user: User) {
     const hasPaging = Boolean(query.page || query.pageSize)
+    const includeSubtickets = String(query.includeSubtickets ?? '').toLowerCase() === 'true'
+    const parentTicketId =
+      query.parentTicketId === 'null'
+        ? null
+        : (query.parentTicketId?.trim() ? query.parentTicketId.trim() : undefined)
+
     const filters = {
       status: query.status,
       priority: query.priority,
@@ -103,6 +119,8 @@ export class TicketsController {
       effort: query.effort,
       q: query.q,
       limit: query.limit ? Number(query.limit) : undefined,
+      includeSubtickets,
+      parentTicketId,
     }
 
     if (hasPaging) {

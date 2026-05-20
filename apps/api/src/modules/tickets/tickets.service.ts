@@ -51,9 +51,19 @@ export class TicketsService {
       serviceId?: string
       effort?: string
       q?: string
+      includeSubtickets?: boolean
+      parentTicketId?: string | null
     },
   ) {
+    const parentFilter =
+      filters?.parentTicketId === null
+        ? { parentTicketId: null }
+        : filters?.parentTicketId
+          ? { parentTicketId: filters.parentTicketId }
+          : (!filters?.includeSubtickets ? { parentTicketId: null } : {})
+
     return {
+      ...parentFilter,
       ...(filters?.status ? { status: filters.status as any } : {}),
       ...(filters?.priority ? { priority: filters.priority as any } : {}),
       ...(filters?.assigneeId ? { assigneeId: filters.assigneeId } : {}),
@@ -131,6 +141,8 @@ export class TicketsService {
       effort?: string
       q?: string
       limit?: number
+      includeSubtickets?: boolean
+      parentTicketId?: string | null
     },
   ) {
     if (!projectId) {
@@ -142,7 +154,6 @@ export class TicketsService {
     return this.assertProjectAccess(projectId, userId).then(() => this.prisma.ticket.findMany({
       where: {
         projectId,
-        parentTicketId: null,
         ...this.buildTicketFilters(filters),
       },
       include: ticketInclude,
@@ -161,13 +172,14 @@ export class TicketsService {
       effort?: string
       q?: string
       limit?: number
+      includeSubtickets?: boolean
+      parentTicketId?: string | null
     },
   ) {
     const take = this.normalizeTake(filters?.limit)
 
     return this.prisma.ticket.findMany({
       where: {
-        parentTicketId: null,
         project: {
           OR: [
             { ownerId: userId },
@@ -194,6 +206,8 @@ export class TicketsService {
       q?: string
       page?: number
       pageSize?: number
+      includeSubtickets?: boolean
+      parentTicketId?: string | null
     },
   ) {
     if (!projectId) {
@@ -205,7 +219,6 @@ export class TicketsService {
     const pageSize = this.normalizePageSize(filters?.pageSize)
     const where = {
       projectId,
-      parentTicketId: null,
       ...this.buildTicketFilters(filters),
     }
 
@@ -242,12 +255,13 @@ export class TicketsService {
       page?: number
       pageSize?: number
       projectId?: string
+      includeSubtickets?: boolean
+      parentTicketId?: string | null
     },
   ) {
     const page = this.normalizePage(filters?.page)
     const pageSize = this.normalizePageSize(filters?.pageSize)
     const where = {
-      parentTicketId: null,
       project: {
         OR: [
           { ownerId: userId },
