@@ -1,5 +1,5 @@
 FROM node:20-alpine AS base
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 WORKDIR /app
 
 FROM base AS deps
@@ -18,7 +18,7 @@ RUN pnpm db:generate
 RUN pnpm --filter @platform/api build
 
 FROM node:20-alpine AS runner
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 WORKDIR /app
 
 COPY --from=builder /app/apps/api/dist ./dist

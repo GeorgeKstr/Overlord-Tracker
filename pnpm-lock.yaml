@@ -7,10 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      pnpm:
-        specifier: ^11.1.2
-        version: 11.1.2
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -3919,11 +3915,6 @@ packages:
   pluralize@8.0.0:
     resolution: {integrity: sha512-Nc3IT5yHzflTfbjgqWcCPpo7DaKy4FnpB0l/zCAW0Tc7jxAiuqSxHasntB3D7887LSrA93kDJ9IXovxJYxyLCA==}
     engines: {node: '>=4'}
-
-  pnpm@11.1.2:
-    resolution: {integrity: sha512-QVocwll0cx51RVwUaDcb50xapft2IbUNQFbSIkUWCfEUEvI/1gLmFp8eBgRmZB95hZfhvpYaEGiINqZ7FlaUmQ==}
-    engines: {node: '>=22.13'}
-    hasBin: true
 
   points-on-curve@0.2.0:
     resolution: {integrity: sha512-0mYKnYYe9ZcqMCWhUjItv/oHjvgEsfKvnUTg8sAtnHr3GVy7rGkXCb6d5cSyqrWqL4k81b9CPg3urd+T7aop3A==}
@@ -9502,8 +9493,6 @@ snapshots:
   pirates@4.0.7: {}
 
   pluralize@8.0.0: {}
-
-  pnpm@11.1.2: {}
 
   points-on-curve@0.2.0: {}
 
