@@ -84,7 +84,7 @@ const KNOWLEDGE_META: Record<KnowledgeField, { title: string; hint: string; plac
   },
   apiSpec: {
     title: 'API Endpoints',
-    hint: 'Document or ingest endpoint contracts and payload notes.',
+    hint: 'Service-level OpenAPI specs are source-of-truth; project spec should be composed from services.',
     placeholder: 'GET /api/health\nGET /api/projects/:id\nPOST /api/tickets',
   },
 }
@@ -144,6 +144,35 @@ function isMermaidSyntax(value: string) {
     .find(Boolean)
   if (!firstLine) return false
   return MERMAID_PREFIXES.some((prefix) => firstLine.startsWith(prefix))
+}
+
+function inferMermaidGraphFromText(value: string): string | null {
+  const normalized = normalizeMultilineContent(value)
+  const lines = normalized
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  if (!lines.length) return null
+
+  const relationRows = lines
+    .map((line) => {
+      const cleaned = line.replace(/^[-*]\s*/, '')
+      const relationMatch = /^([A-Za-z][A-Za-z0-9_ ]+)\s*(-->|->|=>|:|\|\|--o\{|\|\|--\|\{)\s*([A-Za-z][A-Za-z0-9_ ]+)(?:\s*:\s*(.+))?$/i.exec(cleaned)
+      if (!relationMatch) return null
+
+      const from = relationMatch[1].trim().replace(/\s+/g, '_').toUpperCase()
+      const rawArrow = relationMatch[2]
+      const to = relationMatch[3].trim().replace(/\s+/g, '_').toUpperCase()
+      const label = relationMatch[4]?.trim()
+
+      const arrow = rawArrow === ':' ? '-->' : rawArrow
+      return `${from} ${arrow} ${to}${label ? ` : ${label}` : ''}`
+    })
+    .filter((row): row is string => Boolean(row))
+
+  if (!relationRows.length) return null
+  return ['flowchart LR', ...relationRows].join('\n')
 }
 
 function extractOpenApi(input: unknown): ParsedApiSpec | null {
@@ -849,15 +878,35 @@ export default function ProjectDetailPage() {
     }
 
     if (field === 'entityGraph' && isMermaidSyntax(content)) {
+      const normalizedContent = normalizeMultilineContent(content)
       return (
         <div className="space-y-3">
-          <MermaidPreview chart={content} />
+          <MermaidPreview chart={normalizedContent} />
           <details className="rounded-md border bg-muted/10 p-3">
             <summary className="cursor-pointer text-xs text-muted-foreground">Show source</summary>
-            <pre className="mt-2 whitespace-pre-wrap text-xs">{content}</pre>
+            <pre className="mt-2 whitespace-pre-wrap text-xs">{normalizedContent}</pre>
           </details>
         </div>
       )
+    }
+
+    if (field === 'entityGraph') {
+      const inferredGraph = inferMermaidGraphFromText(content)
+      if (inferredGraph) {
+        return (
+          <div className="space-y-3">
+            <div className="rounded-md border bg-muted/10 p-3">
+              <p className="text-xs font-medium">Auto-converted relationship notes</p>
+              <p className="text-xs text-muted-foreground mt-1">Converted plain-text relations into Mermaid flowchart syntax for rendering. Save as Mermaid for best results.</p>
+            </div>
+            <MermaidPreview chart={inferredGraph} />
+            <details className="rounded-md border bg-muted/10 p-3">
+              <summary className="cursor-pointer text-xs text-muted-foreground">Show source</summary>
+              <pre className="mt-2 whitespace-pre-wrap text-xs">{normalizeMultilineContent(content)}</pre>
+            </details>
+          </div>
+        )
+      }
     }
 
     return (

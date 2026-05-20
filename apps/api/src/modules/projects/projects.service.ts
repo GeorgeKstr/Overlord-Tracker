@@ -39,6 +39,7 @@ const AGENT_EXECUTION_PROTOCOL = {
     epicRule: 'Large features must be created as Epic tickets first.',
     subTicketRule: 'Epic implementation work must be decomposed into child sub-tickets with specific deliverables.',
     effortBias: 'Prefer XS/S/M child tickets. Avoid L/XL unless unavoidable.',
+    titleConvention: 'Ticket titles must be natural language only. Never prefix titles with effort markers like [MINOR], [NORMAL], or [EPIC]. Store effort in the effort field.',
   },
   ticketSelection: {
     whenUnspecified: [
@@ -53,10 +54,15 @@ const AGENT_EXECUTION_PROTOCOL = {
   apiSpecPolicy: {
     sourceOfTruth: 'Per-service API specs are the source of truth.',
     aggregation: 'Project-level apiSpec must be generated from service-level specs.',
+    format: 'Use valid OpenAPI 3.x JSON or YAML for each service whenever possible.',
     updateOrder: [
       'Update service specs first.',
       'Then update project apiSpec as composed output.',
     ],
+  },
+  entityGraphPolicy: {
+    preferredFormat: 'Mermaid erDiagram for persisted entity relationships.',
+    minimumContent: ['Entity names', 'Cardinality', 'Relationship labels'],
   },
   knowledgeUpdateOrder: ['roadmap', 'entityGraph', 'readmeMd', 'apiSpec'],
   safety: [
@@ -65,6 +71,53 @@ const AGENT_EXECUTION_PROTOCOL = {
     'Do not mutate unrelated tickets/services/members.',
   ],
 } as const
+
+type ParsedServiceEndpoint = {
+  method: string
+  path: string
+}
+
+function extractServiceEndpoints(apiSpec: string | null | undefined): ParsedServiceEndpoint[] {
+  const raw = (apiSpec ?? '').trim()
+  if (!raw) return []
+
+  try {
+    const parsed = JSON.parse(raw) as { paths?: Record<string, Record<string, unknown>> }
+    if (parsed?.paths && typeof parsed.paths === 'object') {
+      return Object.entries(parsed.paths).flatMap(([path, methods]) =>
+        Object.keys(methods ?? {})
+          .map((method) => method.toUpperCase())
+          .filter((method) => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'].includes(method))
+          .map((method) => ({ method, path })),
+      )
+    }
+  } catch {
+    // fall through to heuristic parser
+  }
+
+  const endpoints: ParsedServiceEndpoint[] = []
+  let currentPath: string | null = null
+  for (const line of raw.split(/\r?\n/)) {
+    const pathMatch = /^\s{0,6}(\/[^:]+):\s*$/.exec(line)
+    if (pathMatch) {
+      currentPath = pathMatch[1]
+      continue
+    }
+
+    const methodMatch = /^\s{2,10}(get|post|put|patch|delete|options|head):\s*$/i.exec(line)
+    if (methodMatch && currentPath) {
+      endpoints.push({ method: methodMatch[1].toUpperCase(), path: currentPath })
+      continue
+    }
+
+    const httpLine = /^(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD)\s+([^\s]+)\b/i.exec(line.trim())
+    if (httpLine) {
+      endpoints.push({ method: httpLine[1].toUpperCase(), path: httpLine[2] })
+    }
+  }
+
+  return endpoints
+}
 
 @Injectable()
 export class ProjectsService {
@@ -399,6 +452,19 @@ export class ProjectsService {
     filters?: { status?: string; priority?: string; assigneeId?: string; q?: string; limit?: number },
   ) {
     const project = await this.findOne(projectId, userId)
+    const services = await this.prisma.service.findMany({
+      where: { projectId },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        baseUrl: true,
+        healthUrl: true,
+        apiSpec: true,
+        updatedAt: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    })
     const take = filters?.limit && Number.isFinite(filters.limit)
       ? Math.max(1, Math.min(200, Math.trunc(filters.limit)))
       : undefined
@@ -438,6 +504,25 @@ export class ProjectsService {
         entityGraph: project.entityGraph,
         readmeMd: project.readmeMd,
         apiSpec: project.apiSpec,
+        entityGraphGuidance: {
+          preferredSyntax: 'Mermaid erDiagram',
+          example: 'erDiagram\n  USER ||--o{ PROJECT : owns\n  PROJECT ||--o{ TICKET : contains',
+        },
+        serviceApiSpecs: services.map((service) => {
+          const endpoints = extractServiceEndpoints(service.apiSpec)
+          return {
+            serviceId: service.id,
+            serviceName: service.name,
+            slug: service.slug,
+            baseUrl: service.baseUrl,
+            healthUrl: service.healthUrl,
+            endpointCount: endpoints.length,
+            endpoints,
+            apiSpec: service.apiSpec,
+            updatedAt: service.updatedAt,
+          }
+        }),
+        apiSpecCompositionRule: 'Project apiSpec should represent the composed surface area of all service-level specs.',
       },
       tickets,
       history: recentKnowledgeHistory,

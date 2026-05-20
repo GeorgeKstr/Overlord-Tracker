@@ -40,7 +40,7 @@ export function StatusBadge({ status, className, iconOnly }: StatusBadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 text-xs font-medium',
+        'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold',
         TICKET_STATUS_BG[status],
         className,
       )}
@@ -76,7 +76,7 @@ export function PriorityBadge({ priority, className, iconOnly }: PriorityBadgePr
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 text-xs font-medium',
+        'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold',
         TICKET_PRIORITY_BG[priority],
         className,
       )}

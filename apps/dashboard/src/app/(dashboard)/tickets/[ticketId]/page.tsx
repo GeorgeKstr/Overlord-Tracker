@@ -24,7 +24,9 @@ import { api } from '@/lib/api-client'
 import { buildProjectApiUrl, formatContextApiUrl, getStoredOverlordBaseUrl } from '@/lib/overlord-links'
 import {
   TICKET_STATUS_LABELS,
+  TICKET_STATUS_BG,
   TICKET_PRIORITY_LABELS,
+  TICKET_PRIORITY_BG,
   TICKET_PRIORITY_COLORS,
   TICKET_EFFORT_LABELS,
   formatDate,
@@ -253,13 +255,13 @@ export default function TicketDetailPage() {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <Badge variant={STATUS_BADGE_MAP[ticket.status] ?? 'outline'}>
+            <span className={cn('inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold', TICKET_STATUS_BG[ticket.status])}>
               {TICKET_STATUS_LABELS[ticket.status]}
-            </Badge>
+            </span>
             <span
               className={cn(
-                'flex items-center gap-1 text-xs font-medium',
-                TICKET_PRIORITY_COLORS[ticket.priority],
+                'flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold',
+                TICKET_PRIORITY_BG[ticket.priority],
               )}
             >
               <AlertCircle className="h-3 w-3" />
@@ -580,7 +582,12 @@ export default function TicketDetailPage() {
 
           {/* Status */}
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-1.5">Status</p>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <p className="text-xs font-medium text-muted-foreground">Status</p>
+              <span className={cn('inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold', TICKET_STATUS_BG[ticket.status])}>
+                {TICKET_STATUS_LABELS[ticket.status]}
+              </span>
+            </div>
             <Select
               value={ticket.status}
               onValueChange={(v) => updateMutation.mutate({ status: v as any })}
@@ -600,7 +607,13 @@ export default function TicketDetailPage() {
 
           {/* Priority */}
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-1.5">Priority</p>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <p className="text-xs font-medium text-muted-foreground">Priority</p>
+              <span className={cn('inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold', TICKET_PRIORITY_BG[ticket.priority])}>
+                <AlertCircle className="h-3 w-3" />
+                {TICKET_PRIORITY_LABELS[ticket.priority]}
+              </span>
+            </div>
             <Select
               value={ticket.priority}
               onValueChange={(v) => updateMutation.mutate({ priority: v as any })}
