@@ -12,8 +12,10 @@ import {
 } from '@nestjs/common'
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
+import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import { LabelsService } from './labels.service'
 import { CreateLabelDto } from './dto/create-label.dto'
+import { User } from '@prisma/client'
 
 @ApiTags('labels')
 @ApiBearerAuth()
@@ -24,22 +26,22 @@ export class LabelsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a label for a project' })
-  create(@Body() dto: CreateLabelDto) {
-    return this.labelsService.create(dto)
+  create(@Body() dto: CreateLabelDto, @CurrentUser() user: User) {
+    return this.labelsService.create(dto, user.id)
   }
 
   @Get()
   @ApiOperation({ summary: 'List labels for a project' })
   @ApiQuery({ name: 'projectId', required: true })
-  findByProject(@Query('projectId') projectId: string) {
-    return this.labelsService.findByProject(projectId)
+  findByProject(@Query('projectId') projectId: string, @CurrentUser() user: User) {
+    return this.labelsService.findByProject(projectId, user.id)
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a label' })
-  remove(@Param('id') id: string) {
-    return this.labelsService.remove(id)
+  remove(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.labelsService.remove(id, user.id)
   }
 
   @Post('ticket/:ticketId/label/:labelId')
@@ -47,8 +49,9 @@ export class LabelsController {
   addToTicket(
     @Param('ticketId') ticketId: string,
     @Param('labelId') labelId: string,
+    @CurrentUser() user: User,
   ) {
-    return this.labelsService.addToTicket(ticketId, labelId)
+    return this.labelsService.addToTicket(ticketId, labelId, user.id)
   }
 
   @Delete('ticket/:ticketId/label/:labelId')
@@ -57,7 +60,8 @@ export class LabelsController {
   removeFromTicket(
     @Param('ticketId') ticketId: string,
     @Param('labelId') labelId: string,
+    @CurrentUser() user: User,
   ) {
-    return this.labelsService.removeFromTicket(ticketId, labelId)
+    return this.labelsService.removeFromTicket(ticketId, labelId, user.id)
   }
 }

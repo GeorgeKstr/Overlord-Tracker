@@ -52,14 +52,14 @@ export class AttachmentsController {
 
   @Get('tickets/:ticketId/attachments')
   @ApiOperation({ summary: 'List attachments for a ticket' })
-  findByTicket(@Param('ticketId') ticketId: string) {
-    return this.attachmentsService.findByTicket(ticketId)
+  findByTicket(@Param('ticketId') ticketId: string, @CurrentUser() user: User) {
+    return this.attachmentsService.findByTicket(ticketId, user.id)
   }
 
   @Get('attachments/:id')
   @ApiOperation({ summary: 'Get a single attachment (includes base64 data)' })
-  findOne(@Param('id') id: string) {
-    return this.attachmentsService.findOne(id)
+  findOne(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.attachmentsService.findOne(id, user.id)
   }
 
   @Delete('attachments/:id')

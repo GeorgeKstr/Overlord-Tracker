@@ -21,6 +21,26 @@ const uploadedBySelect = { id: true, name: true, email: true, image: true }
 export class AttachmentsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async assertTicketAccess(ticketId: string, userId: string) {
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+      select: {
+        id: true,
+        project: {
+          select: {
+            ownerId: true,
+            members: { where: { userId }, select: { id: true } },
+          },
+        },
+      },
+    })
+
+    if (!ticket) throw new NotFoundException(`Ticket ${ticketId} not found`)
+
+    const allowed = ticket.project.ownerId === userId || ticket.project.members.length > 0
+    if (!allowed) throw new ForbiddenException('You do not have access to this ticket')
+  }
+
   async create(
     ticketId: string,
     filename: string,
@@ -32,8 +52,7 @@ export class AttachmentsService {
       throw new BadRequestException(`Unsupported file type: ${mimeType}`)
     }
 
-    const ticket = await this.prisma.ticket.findUnique({ where: { id: ticketId } })
-    if (!ticket) throw new NotFoundException(`Ticket ${ticketId} not found`)
+    await this.assertTicketAccess(ticketId, uploadedById)
 
     // Estimate decoded byte size
     const size = Math.floor((data.length * 3) / 4)
@@ -47,7 +66,9 @@ export class AttachmentsService {
     })
   }
 
-  findByTicket(ticketId: string) {
+  async findByTicket(ticketId: string, userId: string) {
+    await this.assertTicketAccess(ticketId, userId)
+
     return this.prisma.attachment.findMany({
       where: { ticketId },
       include: { uploadedBy: { select: uploadedBySelect } },
@@ -55,17 +76,23 @@ export class AttachmentsService {
     })
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, userId: string) {
     const attachment = await this.prisma.attachment.findUnique({
       where: { id },
-      include: { uploadedBy: { select: uploadedBySelect } },
+      include: {
+        uploadedBy: { select: uploadedBySelect },
+        ticket: { select: { id: true } },
+      },
     })
     if (!attachment) throw new NotFoundException(`Attachment ${id} not found`)
+
+    await this.assertTicketAccess(attachment.ticket.id, userId)
+
     return attachment
   }
 
   async remove(id: string, userId: string) {
-    const attachment = await this.findOne(id)
+    const attachment = await this.findOne(id, userId)
     if (attachment.uploadedById !== userId) {
       throw new ForbiddenException('You can only delete your own attachments')
     }
