@@ -27,11 +27,11 @@ export class CreateProjectDto {
   })
   key: string
 
-  @ApiPropertyOptional({ example: 'Main platform project' })
-  @IsOptional()
+  @ApiProperty({ example: 'Main platform project' })
   @IsString()
+  @MinLength(1)
   @MaxLength(500)
-  description?: string
+  description: string
 
   @ApiPropertyOptional({ enum: PROJECT_STATUSES, default: 'ACTIVE' })
   @IsOptional()

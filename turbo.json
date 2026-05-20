@@ -10,7 +10,8 @@
     "NEXTAUTH_URL",
     "GOOGLE_CLIENT_ID",
     "GOOGLE_CLIENT_SECRET",
-    "NEXT_PUBLIC_API_URL"
+    "NEXT_PUBLIC_API_URL",
+    "ADMIN_EMAIL"
   ],
   "tasks": {
     "build": {

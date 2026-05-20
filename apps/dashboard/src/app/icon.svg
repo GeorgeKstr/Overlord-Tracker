@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="Overlord Tracker icon">
+  <rect x="2" y="2" width="44" height="44" rx="10" fill="#111827" />
+  <g fill="#f9fafb">
+    <path d="M14 33 C6 30 2 21 5 13 C8 15 11 19 14 24 C12 26 12 30 14 33 Z" />
+    <path d="M34 33 C42 30 46 21 43 13 C40 15 37 19 34 24 C36 26 36 30 34 33 Z" />
+    <path d="M15 43 C13 43 12 42 12 40 V26 L18 16 L22 24 L24 7 L26 24 L30 16 L36 26 V40 C36 42 35 43 33 43 Z" />
+  </g>
+  <path d="M11 35 H37 V39 C37 41.5 35.5 43 33 43 H15 C12.5 43 11 41.5 11 39 Z" fill="#000" opacity="0.28" />
+  <path d="M19 31 C21 27 27 27 29 31 C27 33 21 33 19 31 Z" fill="#fff" opacity="0.38" />
+  <circle cx="24" cy="31" r="1.8" fill="#fff" opacity="0.5" />
+</svg>

@@ -106,6 +106,23 @@ class ProjectContextQueryDto {
   limit?: string
 }
 
+class FindProjectsQueryDto {
+  @ApiPropertyOptional({ description: 'Search in project name, key, or description' })
+  @IsOptional()
+  @IsString()
+  q?: string
+
+  @ApiPropertyOptional({ description: '1-based page index' })
+  @IsOptional()
+  @IsString()
+  page?: string
+
+  @ApiPropertyOptional({ description: 'Page size (1-100)' })
+  @IsOptional()
+  @IsString()
+  pageSize?: string
+}
+
 @ApiTags('projects')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -121,8 +138,16 @@ export class ProjectsController {
 
   @Get()
   @ApiOperation({ summary: 'List accessible projects' })
-  findAll(@CurrentUser() user: User) {
-    return this.projectsService.findAll(user.id, user.role)
+  findAll(@CurrentUser() user: User, @Query() query: FindProjectsQueryDto) {
+    const hasPaging = Boolean(query.page || query.pageSize)
+    if (hasPaging) {
+      return this.projectsService.findAllPaginated(user.id, user.role, {
+        q: query.q,
+        page: query.page ? Number(query.page) : undefined,
+        pageSize: query.pageSize ? Number(query.pageSize) : undefined,
+      })
+    }
+    return this.projectsService.findAll(user.id, user.role, query.q)
   }
 
   @Get('agent-index')

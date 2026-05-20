@@ -33,9 +33,6 @@ export class AuthService {
 
   async register(name: string, emailAddress: string, password: string) {
     const existing = await this.prisma.user.findUnique({ where: { email: emailAddress } })
-    if (existing) {
-      throw new ConflictException('An account with this email already exists.')
-    }
 
     const passwordHash = await bcrypt.hash(password, 12)
     const smtpConfigured = !!(
@@ -43,6 +40,24 @@ export class AuthService {
       process.env.SMTP_USER &&
       process.env.SMTP_PASS
     )
+
+    // If user exists with a password already set, reject the registration
+    if (existing && existing.passwordHash) {
+      throw new ConflictException('An account with this email already exists.')
+    }
+
+    // If user exists without a password (OAuth-only), add credentials to their account
+    if (existing && !existing.passwordHash) {
+      await this.prisma.user.update({
+        where: { email: emailAddress },
+        data: {
+          passwordHash,
+          // Auto-verify if SMTP is not configured and not yet verified
+          emailVerified: smtpConfigured ? existing.emailVerified : (existing.emailVerified ?? new Date()),
+        },
+      })
+      return { emailVerificationRequired: smtpConfigured && !existing.emailVerified }
+    }
 
     await this.prisma.user.create({
       data: {
@@ -116,7 +131,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password.')
     }
 
-    if (!user.emailVerified) {
+    const smtpConfigured = !!(
+      process.env.SMTP_HOST &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASS
+    )
+    if (smtpConfigured && !user.emailVerified) {
       throw new ForbiddenException('Please verify your email address before signing in.')
     }
 

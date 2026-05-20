@@ -8,6 +8,27 @@ interface CommentListProps {
   onDelete?: (id: string) => void
 }
 
+/** Split text on URLs and render them as clickable links */
+function renderWithLinks(text: string) {
+  const parts = text.split(/(https?:\/\/[^\s]+)/g)
+  return parts.map((part, i) =>
+    /^https?:\/\//.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary underline break-all hover:opacity-80"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    ),
+  )
+}
+
 export function CommentList({ comments, currentUserId, onDelete }: CommentListProps) {
   if (comments.length === 0) {
     return (
@@ -43,7 +64,7 @@ export function CommentList({ comments, currentUserId, onDelete }: CommentListPr
                 </span>
               </div>
               <p className="text-sm text-foreground/90 mt-0.5 whitespace-pre-wrap">
-                {comment.content}
+                {renderWithLinks(comment.content)}
               </p>
               {onDelete && currentUserId === comment.authorId && (
                 <button

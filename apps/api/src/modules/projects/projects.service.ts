@@ -58,25 +58,81 @@ export class ProjectsService {
     })
   }
 
+  private normalizePage(page?: number) {
+    if (!page || !Number.isFinite(page)) return 1
+    return Math.max(1, Math.trunc(page))
+  }
+
+  private normalizePageSize(pageSize?: number) {
+    if (!pageSize || !Number.isFinite(pageSize)) return 20
+    return Math.max(1, Math.min(100, Math.trunc(pageSize)))
+  }
+
+  private buildAccessWhere(userId: string, userRole?: string) {
+    if (userRole === 'ADMIN') return {}
+    return {
+      OR: [
+        { ownerId: userId },
+        { members: { some: { userId } } },
+      ],
+    }
+  }
+
+  private buildProjectWhere(userId: string, userRole?: string, q?: string) {
+    const accessWhere = this.buildAccessWhere(userId, userRole)
+    if (!q?.trim()) return accessWhere
+    return {
+      AND: [
+        accessWhere,
+        {
+          OR: [
+            { name: { contains: q } },
+            { key: { contains: q } },
+            { description: { contains: q } },
+          ],
+        },
+      ],
+    }
+  }
+
   /** Returns projects accessible to the given user (owned or member).
    * ADMIN users see every project. */
-  findAll(userId: string, userRole?: string) {
-    if (userRole === 'ADMIN') {
-      return this.prisma.project.findMany({
-        include: projectInclude,
-        orderBy: { createdAt: 'desc' },
-      })
-    }
+  findAll(userId: string, userRole?: string, q?: string) {
     return this.prisma.project.findMany({
-      where: {
-        OR: [
-          { ownerId: userId },
-          { members: { some: { userId } } },
-        ],
-      },
+      where: this.buildProjectWhere(userId, userRole, q),
       include: projectInclude,
       orderBy: { createdAt: 'desc' },
     })
+  }
+
+  async findAllPaginated(
+    userId: string,
+    userRole?: string,
+    options?: { q?: string; page?: number; pageSize?: number },
+  ) {
+    const page = this.normalizePage(options?.page)
+    const pageSize = this.normalizePageSize(options?.pageSize)
+    const where = this.buildProjectWhere(userId, userRole, options?.q)
+
+    const [total, items] = await Promise.all([
+      this.prisma.project.count({ where }),
+      this.prisma.project.findMany({
+        where,
+        include: projectInclude,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ])
+
+    const totalPages = Math.max(1, Math.ceil(total / pageSize))
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages,
+    }
   }
 
   async findOne(id: string, userId: string) {
@@ -130,6 +186,7 @@ export class ProjectsService {
 
   async addMember(projectId: string, email: string, role: string, requesterId: string) {
     const project = await this.findOne(projectId, requesterId)
+    const normalizedEmail = email.trim().toLowerCase()
 
     // Only project owner, admins, or moderators can add members
     const requester = await this.prisma.user.findUnique({
@@ -142,16 +199,53 @@ export class ProjectsService {
       throw new ForbiddenException('Only the project owner, admins, or moderators can add members')
     }
 
-    const user = await this.prisma.user.upsert({
-      where: { email },
-      update: {},
-      create: {
-        email,
-        name: null,
-        role: 'USER',
-        status: 'APPROVED',
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        emailVerified: true,
       },
     })
+
+    const shouldSendInvitation = !existingUser || existingUser.status !== 'APPROVED'
+
+    const user = existingUser
+      ? (existingUser.status === 'APPROVED'
+          ? existingUser
+          : await this.prisma.user.update({
+              where: { id: existingUser.id },
+              data: {
+                status: 'APPROVED',
+                emailVerified: existingUser.emailVerified ?? new Date(),
+              },
+              select: {
+                id: true,
+                email: true,
+                role: true,
+                status: true,
+                emailVerified: true,
+              },
+            }))
+      : await this.prisma.user.create({
+          data: {
+            email: normalizedEmail,
+            name: null,
+            role: 'USER',
+            status: 'APPROVED',
+            // Treat invitation as acceptance for account onboarding.
+            emailVerified: new Date(),
+          },
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            status: true,
+            emailVerified: true,
+          },
+        })
     if (user.id === project.ownerId) throw new BadRequestException('Owner is already a member')
 
     const existing = await this.prisma.projectMember.findUnique({
@@ -166,15 +260,17 @@ export class ProjectsService {
 
     const requesterFull = await this.prisma.user.findUnique({ where: { id: requesterId } })
     const appUrl = this.config.get<string>('DASHBOARD_URL') ?? 'http://localhost:3000'
-    this.email
-      .sendProjectInvitation({
-        to: email,
-        inviterName: requesterFull?.name ?? requesterFull?.email ?? 'A teammate',
-        projectName: project.name,
-        projectId: project.id,
-        appUrl,
-      })
-      .catch(() => { /* fire-and-forget */ })
+    if (shouldSendInvitation) {
+      this.email
+        .sendProjectInvitation({
+          to: normalizedEmail,
+          inviterName: requesterFull?.name ?? requesterFull?.email ?? 'A teammate',
+          projectName: project.name,
+          projectId: project.id,
+          appUrl,
+        })
+        .catch(() => { /* fire-and-forget */ })
+    }
 
     return member
   }

@@ -3,7 +3,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import {
   Plus,
   ArrowLeft,
@@ -12,15 +13,20 @@ import {
   LayoutList,
   X,
   UserCircle2,
+  Search,
+  CheckCircle2,
+  UserCheck,
 } from 'lucide-react'
 import { api } from '@/lib/api-client'
 import {
   TICKET_STATUS_LABELS,
   TICKET_PRIORITY_LABELS,
+  TICKET_EFFORT_LABELS,
   formatRelativeTime,
   cn,
 } from '@/lib/utils'
 import type { Ticket, Project, Label, UserSummary, ProjectMember, Service } from '@platform/shared-types'
+import { DataPaginator } from '@/components/pagination/data-paginator'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -53,6 +59,14 @@ import { StatusBadge, StatusIcon, PriorityBadge, PriorityIcon } from '@/componen
 const ALL_STATUSES = ['OPEN', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED'] as const
 type ViewMode = 'grid' | 'list'
 
+type PaginatedResponse<T> = {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
 function toInitials(user: UserSummary) {
   return (user.name ?? user.email).slice(0, 2).toUpperCase()
 }
@@ -60,15 +74,27 @@ function toInitials(user: UserSummary) {
 export default function TicketsPage() {
   const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
+  const { data: session } = useSession()
   const [open, setOpen] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
+  const [priorityFilter, setPriorityFilter] = useState<string>('ALL')
   const [serviceFilter, setServiceFilter] = useState<string>('ALL')
+  const [effortFilter, setEffortFilter] = useState<string>('ALL')
+  const [assignedToMe, setAssignedToMe] = useState(false)
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState<number>(() => {
+    if (typeof window === 'undefined') return 20
+    const raw = Number(localStorage.getItem('overlord.projectTickets.pageSize') ?? '20')
+    return [10, 20, 50].includes(raw) ? raw : 20
+  })
   const [form, setForm] = useState({
     title: '',
     description: '',
     priority: 'MEDIUM',
     status: 'OPEN',
+    effort: '',
     parentTicketId: '',
     assigneeId: '',
     serviceId: '',
@@ -80,11 +106,27 @@ export default function TicketsPage() {
     enabled: !!id,
   })
 
-  const { data: tickets = [], isLoading } = useQuery({
-    queryKey: ['tickets', { projectId: id }],
-    queryFn: () => api.get<Ticket[]>(`/tickets?projectId=${id}`),
+  const { data: ticketsPage, isLoading } = useQuery({
+    queryKey: ['tickets', { projectId: id, page, pageSize, statusFilter, priorityFilter, serviceFilter, effortFilter, assignedToMe, search, me: session?.user?.id }],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        projectId: id,
+        page: String(page),
+        pageSize: String(pageSize),
+      })
+      if (statusFilter !== 'ALL') params.set('status', statusFilter)
+      if (priorityFilter !== 'ALL') params.set('priority', priorityFilter)
+      if (serviceFilter !== 'ALL') params.set('serviceId', serviceFilter)
+      if (effortFilter !== 'ALL') params.set('effort', effortFilter)
+      if (assignedToMe && session?.user?.id) params.set('assigneeId', session.user.id)
+      if (search.trim()) params.set('q', search.trim())
+      return api.get<PaginatedResponse<Ticket>>(`/tickets?${params.toString()}`)
+    },
     enabled: !!id,
   })
+  const ticketItems = ticketsPage?.items ?? []
+  const totalTickets = ticketsPage?.total ?? 0
+  const totalPages = ticketsPage?.totalPages ?? 1
 
   const { data: labels = [] } = useQuery({
     queryKey: ['labels', id],
@@ -109,6 +151,7 @@ export default function TicketsPage() {
       api.post<Ticket>('/tickets', {
         ...data,
         projectId: id,
+        effort: data.effort || undefined,
         parentTicketId: data.parentTicketId || undefined,
         assigneeId: data.assigneeId || undefined,
         serviceId: data.serviceId || undefined,
@@ -116,7 +159,7 @@ export default function TicketsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tickets', { projectId: id }] })
       setOpen(false)
-      setForm({ title: '', description: '', priority: 'MEDIUM', status: 'OPEN', parentTicketId: '', assigneeId: '', serviceId: '' })
+      setForm({ title: '', description: '', priority: 'MEDIUM', status: 'OPEN', effort: '', parentTicketId: '', assigneeId: '', serviceId: '' })
     },
   })
 
@@ -129,18 +172,27 @@ export default function TicketsPage() {
     },
   })
 
-  const filteredTickets = tickets.filter((t) => {
-    const statusMatch = statusFilter === 'ALL' || t.status === statusFilter
-    const serviceMatch =
-      serviceFilter === 'ALL'
-      || (serviceFilter === '__none__' ? !t.serviceId : t.serviceId === serviceFilter)
-    return statusMatch && serviceMatch
-  })
+  useEffect(() => {
+    localStorage.setItem('overlord.projectTickets.pageSize', String(pageSize))
+  }, [pageSize])
+
+  useEffect(() => {
+    setPage(1)
+  }, [statusFilter, priorityFilter, serviceFilter, effortFilter, assignedToMe, search])
+
+  useEffect(() => {
+    if (!ticketsPage) return
+    if (page > totalPages) setPage(totalPages)
+  }, [ticketsPage, page, totalPages])
+
+  const filteredTickets = ticketItems
 
   const statusCounts = ALL_STATUSES.reduce((acc, s) => {
-    acc[s] = tickets.filter((t) => t.status === s).length
+    acc[s] = ticketItems.filter((t) => t.status === s).length
     return acc
   }, {} as Record<string, number>)
+
+  const assignedToMeCount = ticketItems.filter((t) => t.assigneeId === session?.user?.id).length
 
   // Build assignee options: project owner + members
   const assigneeOptions: UserSummary[] = []
@@ -163,7 +215,7 @@ export default function TicketsPage() {
             {project?.name} — Tickets
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {tickets.length} ticket{tickets.length !== 1 ? 's' : ''}
+            {totalTickets} ticket{totalTickets !== 1 ? 's' : ''}
           </p>
         </div>
 
@@ -214,7 +266,7 @@ export default function TicketsPage() {
         >
           All
           <span className="rounded-full bg-background/20 px-1.5 py-0.5 text-xs leading-none">
-            {tickets.length}
+            {totalTickets}
           </span>
         </button>
         {ALL_STATUSES.map((s) => (
@@ -241,20 +293,84 @@ export default function TicketsPage() {
           </button>
         ))}
       </div>
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">Service:</span>
-        <Select value={serviceFilter} onValueChange={setServiceFilter}>
-          <SelectTrigger className="h-8 w-[220px]">
-            <SelectValue placeholder="All services" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All services</SelectItem>
-            <SelectItem value="__none__">No service</SelectItem>
-            {services.map((service) => (
-              <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex items-center gap-4 flex-wrap">
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Search tickets…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-8 pl-8 text-sm"
+          />
+          {search && (
+            <button type="button" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setAssignedToMe((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-1.5 h-8 rounded-md border px-3 text-sm font-medium transition-colors shrink-0',
+            assignedToMe
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'border-input bg-background text-muted-foreground hover:bg-muted',
+          )}
+        >
+          <UserCheck className="h-3.5 w-3.5" />
+          Assigned to me
+          <span className={cn(
+            'rounded-full px-1.5 py-0.5 text-xs leading-none',
+            assignedToMe ? 'bg-background/20' : 'bg-muted',
+          )}>
+            {assignedToMeCount}
+          </span>
+        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Priority:</span>
+          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+            <SelectTrigger className="h-8 w-[140px]">
+              <SelectValue placeholder="All priorities" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All priorities</SelectItem>
+              {Object.entries(TICKET_PRIORITY_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Effort:</span>
+          <Select value={effortFilter} onValueChange={setEffortFilter}>
+            <SelectTrigger className="h-8 w-[140px]">
+              <SelectValue placeholder="All efforts" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All efforts</SelectItem>
+              <SelectItem value="__none__">Not set</SelectItem>
+              {Object.entries(TICKET_EFFORT_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Service:</span>
+          <Select value={serviceFilter} onValueChange={setServiceFilter}>
+            <SelectTrigger className="h-8 w-[180px]">
+              <SelectValue placeholder="All services" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All services</SelectItem>
+              <SelectItem value="__none__">No service</SelectItem>
+              {services.map((service) => (
+                <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* ── GRID VIEW ── */}
@@ -291,11 +407,12 @@ export default function TicketsPage() {
           <EmptyState onNew={() => setOpen(true)} />
         ) : (
           <div className="rounded-lg border divide-y overflow-hidden">
-            <div className="hidden md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,2fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,2fr)] items-center gap-2 px-4 py-2 text-xs font-medium text-muted-foreground bg-muted/40">
+            <div className="hidden md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,3fr)_minmax(0,2fr)_minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,2fr)] items-center gap-2 px-4 py-2 text-xs font-medium text-muted-foreground bg-muted/40">
               <span>Status</span>
               <span>Title</span>
               <span>Labels</span>
               <span>Priority</span>
+              <span>Effort</span>
               <span>Created</span>
               <span>Service</span>
               <span className="text-right">Assignee</span>
@@ -311,6 +428,18 @@ export default function TicketsPage() {
           </div>
         )
       )}
+
+      <DataPaginator
+        page={page}
+        pageSize={pageSize}
+        total={totalTickets}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        onPageSizeChange={(nextSize) => {
+          setPageSize(nextSize)
+          setPage(1)
+        }}
+      />
 
       {/* Create dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
@@ -371,6 +500,18 @@ export default function TicketsPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-2">
+              <FormLabel>Effort</FormLabel>
+              <Select value={form.effort || '__none__'} onValueChange={(v) => setForm((f) => ({ ...f, effort: v === '__none__' ? '' : v }))}>
+                <SelectTrigger><SelectValue placeholder="Not set" /></SelectTrigger>
+                <SelectContent position="popper" side="bottom" sideOffset={6} className="z-[120] bg-popover">
+                  <SelectItem value="__none__">Not set</SelectItem>
+                  {Object.entries(TICKET_EFFORT_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <FormLabel>Assign to</FormLabel>
@@ -530,8 +671,19 @@ function TicketCard({
             </div>
           )}
           <div className="flex items-center gap-2 flex-wrap">
-            <StatusBadge status={ticket.status} />
+            <div className="flex items-center gap-1">
+              <StatusBadge status={ticket.status} />
+              {ticket.tested && (
+                <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600" title="Tested">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                  Tested
+                </span>
+              )}
+            </div>
             <PriorityBadge priority={ticket.priority} />
+            {ticket.effort && (
+              <span className="text-xs text-muted-foreground">{TICKET_EFFORT_LABELS[ticket.effort] ?? ticket.effort}</span>
+            )}
             {ticket._count && ticket._count.subTickets > 0 && (
               <span className="ml-auto text-xs text-muted-foreground">
                 {ticket._count.subTickets} sub
@@ -581,9 +733,17 @@ function TicketRow({
 }) {
   return (
     <div className="px-4 py-3 hover:bg-muted/50 transition-colors">
-      <div className="md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,2fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,2fr)] md:items-center md:gap-2 flex items-center gap-3">
+      <div className="md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,3fr)_minmax(0,2fr)_minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,2fr)] md:items-center md:gap-2 flex items-center gap-3">
         <Link href={`/tickets/${ticket.id}`} className="contents">
-          <StatusIcon status={ticket.status} className="h-4 w-4 shrink-0" />
+          <div className="flex items-center gap-1">
+            <StatusBadge status={ticket.status} />
+            {ticket.tested && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600" title="Tested">
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                Tested
+              </span>
+            )}
+          </div>
           <div className="min-w-0">
             <p className="text-sm font-medium truncate">{ticket.title}</p>
             {ticket.description && (
@@ -600,6 +760,9 @@ function TicketRow({
           <div className="hidden md:block">
             <PriorityBadge priority={ticket.priority} />
           </div>
+          <span className="hidden md:block text-xs text-muted-foreground">
+            {ticket.effort ? (TICKET_EFFORT_LABELS[ticket.effort] ?? ticket.effort) : '—'}
+          </span>
           <span className="hidden md:block text-xs text-muted-foreground">
             {formatRelativeTime(ticket.createdAt)}
           </span>

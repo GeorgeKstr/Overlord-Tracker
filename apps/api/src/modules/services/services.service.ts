@@ -17,6 +17,37 @@ const serviceInclude = {
 export class ServicesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private normalizePage(page?: number) {
+    if (!page || !Number.isFinite(page)) return 1
+    return Math.max(1, Math.trunc(page))
+  }
+
+  private normalizePageSize(pageSize?: number) {
+    if (!pageSize || !Number.isFinite(pageSize)) return 20
+    return Math.max(1, Math.min(100, Math.trunc(pageSize)))
+  }
+
+  private buildServiceWhere(userId: string, projectId?: string, q?: string) {
+    return {
+      project: {
+        OR: [
+          { ownerId: userId },
+          { members: { some: { userId } } },
+        ],
+      },
+      ...(projectId ? { projectId } : {}),
+      ...(q?.trim()
+        ? {
+            OR: [
+              { name: { contains: q } },
+              { slug: { contains: q } },
+              { description: { contains: q } },
+            ],
+          }
+        : {}),
+    }
+  }
+
   private async assertProjectAccess(projectId: string, userId: string) {
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
@@ -49,27 +80,53 @@ export class ServicesService {
     })
   }
 
-  findAll(userId: string) {
+  findAll(userId: string, q?: string) {
     return this.prisma.service.findMany({
-      where: {
-        project: {
-          OR: [
-            { ownerId: userId },
-            { members: { some: { userId } } },
-          ],
-        },
-      },
+      where: this.buildServiceWhere(userId, undefined, q),
       include: serviceInclude,
       orderBy: { name: 'asc' },
     })
   }
 
-  findByProject(projectId: string, userId: string) {
+  findByProject(projectId: string, userId: string, q?: string) {
     return this.assertProjectAccess(projectId, userId).then(() => this.prisma.service.findMany({
-      where: { projectId },
+      where: this.buildServiceWhere(userId, projectId, q),
       include: serviceInclude,
       orderBy: { name: 'asc' },
     }))
+  }
+
+  async findAllPaginated(
+    userId: string,
+    options?: { projectId?: string; q?: string; page?: number; pageSize?: number },
+  ) {
+    if (options?.projectId) {
+      await this.assertProjectAccess(options.projectId, userId)
+    }
+
+    const page = this.normalizePage(options?.page)
+    const pageSize = this.normalizePageSize(options?.pageSize)
+    const where = this.buildServiceWhere(userId, options?.projectId, options?.q)
+
+    const [total, items] = await Promise.all([
+      this.prisma.service.count({ where }),
+      this.prisma.service.findMany({
+        where,
+        include: serviceInclude,
+        orderBy: { name: 'asc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ])
+
+    const totalPages = Math.max(1, Math.ceil(total / pageSize))
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages,
+    }
   }
 
   async findOne(id: string, userId: string) {

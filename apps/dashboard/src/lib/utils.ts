@@ -38,20 +38,20 @@ export const TICKET_STATUS_LABELS: Record<string, string> = {
 
 // Text + icon color
 export const TICKET_STATUS_COLORS: Record<string, string> = {
-  OPEN: 'text-sky-600 dark:text-sky-300',
-  IN_PROGRESS: 'text-amber-600 dark:text-amber-300',
-  IN_REVIEW: 'text-violet-600',
-  DONE: 'text-green-600',
-  CANCELLED: 'text-red-500',
+  OPEN: 'text-sky-500 dark:text-sky-300',
+  IN_PROGRESS: 'text-amber-500 dark:text-amber-300',
+  IN_REVIEW: 'text-violet-500 dark:text-violet-300',
+  DONE: 'text-emerald-500 dark:text-emerald-300',
+  CANCELLED: 'text-red-500 dark:text-red-400',
 }
 
-// Pill background + text (for badges)
+// Badge colors — no background, vibrant text only
 export const TICKET_STATUS_BG: Record<string, string> = {
-  OPEN: 'bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
-  IN_PROGRESS: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-  IN_REVIEW: 'bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
-  DONE: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-  CANCELLED: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300',
+  OPEN: 'text-sky-500 dark:text-sky-300',
+  IN_PROGRESS: 'text-amber-500 dark:text-amber-300',
+  IN_REVIEW: 'text-violet-500 dark:text-violet-300',
+  DONE: 'text-emerald-500 dark:text-emerald-300',
+  CANCELLED: 'text-red-500 dark:text-red-400',
 }
 
 export const TICKET_PRIORITY_LABELS: Record<string, string> = {
@@ -62,17 +62,24 @@ export const TICKET_PRIORITY_LABELS: Record<string, string> = {
 }
 
 export const TICKET_PRIORITY_COLORS: Record<string, string> = {
-  LOW: 'text-slate-500',
-  MEDIUM: 'text-amber-500 dark:text-amber-300',
-  HIGH: 'text-orange-500',
-  CRITICAL: 'text-red-600',
+  LOW: 'text-slate-400 dark:text-slate-400',
+  MEDIUM: 'text-amber-500 dark:text-amber-400',
+  HIGH: 'text-orange-500 dark:text-orange-400',
+  CRITICAL: 'text-red-500 dark:text-red-400',
 }
 
+// Badge colors — no background, vibrant text only
 export const TICKET_PRIORITY_BG: Record<string, string> = {
-  LOW: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
-  MEDIUM: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-  HIGH: 'bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
-  CRITICAL: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400',
+  LOW: 'text-slate-400 dark:text-slate-400',
+  MEDIUM: 'text-amber-500 dark:text-amber-400',
+  HIGH: 'text-orange-500 dark:text-orange-400',
+  CRITICAL: 'text-red-500 dark:text-red-400',
+}
+
+export const TICKET_EFFORT_LABELS: Record<string, string> = {
+  MINOR: 'Minor',
+  NORMAL: 'Normal',
+  EPIC: 'Epic',
 }
 
 export const SERVICE_STATUS_COLORS: Record<string, string> = {

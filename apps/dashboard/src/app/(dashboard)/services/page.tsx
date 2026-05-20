@@ -1,12 +1,13 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Server, Code2, LayoutGrid, LayoutList, Pencil } from 'lucide-react'
 import Link from 'next/link'
 import { api } from '@/lib/api-client'
 import { formatDate } from '@/lib/utils'
 import type { Project, Service } from '@platform/shared-types'
+import { DataPaginator } from '@/components/pagination/data-paginator'
 import {
   Card,
   CardContent,
@@ -49,6 +50,14 @@ type PingResult = {
   latencyMs?: number
 }
 
+type PaginatedResponse<T> = {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
 const RUNTIME_BADGE: Record<RuntimeStatus, 'success' | 'destructive' | 'outline'> = {
   RUNNING: 'success',
   DOWN: 'destructive',
@@ -57,18 +66,55 @@ const RUNTIME_BADGE: Record<RuntimeStatus, 'success' | 'destructive' | 'outline'
 
 export default function ServicesPage() {
   const queryClient = useQueryClient()
-  const [viewMode, setViewMode] = useState<ViewMode>('card')
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window === 'undefined') return 'card'
+    return localStorage.getItem('overlord.services.view') === 'list' ? 'list' : 'card'
+  })
   const [statusTab, setStatusTab] = useState<'ALL' | 'RUNNING' | 'DOWN'>('ALL')
   const [nameFilter, setNameFilter] = useState('')
   const [projectFilter, setProjectFilter] = useState('ALL')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState<number>(() => {
+    if (typeof window === 'undefined') return 20
+    const raw = Number(localStorage.getItem('overlord.services.pageSize') ?? '20')
+    return [10, 20, 50].includes(raw) ? raw : 20
+  })
   const [editUrlOpen, setEditUrlOpen] = useState(false)
   const [editingService, setEditingService] = useState<ExtendedService | null>(null)
   const [urlForm, setUrlForm] = useState({ baseUrl: '', healthUrl: '' })
 
-  const { data: services = [], isLoading } = useQuery({
-    queryKey: ['services'],
-    queryFn: () => api.get<ExtendedService[]>('/services'),
+  useEffect(() => {
+    localStorage.setItem('overlord.services.view', viewMode)
+  }, [viewMode])
+
+  useEffect(() => {
+    localStorage.setItem('overlord.services.pageSize', String(pageSize))
+  }, [pageSize])
+
+  useEffect(() => {
+    setPage(1)
+  }, [nameFilter, projectFilter, statusTab])
+
+  const { data: servicesPage, isLoading } = useQuery({
+    queryKey: ['services', { page, pageSize, q: nameFilter.trim(), projectId: projectFilter }],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+      })
+      if (nameFilter.trim()) params.set('q', nameFilter.trim())
+      if (projectFilter !== 'ALL') params.set('projectId', projectFilter)
+      return api.get<PaginatedResponse<ExtendedService>>(`/services?${params.toString()}`)
+    },
   })
+  const services = servicesPage?.items ?? []
+  const totalServices = servicesPage?.total ?? 0
+  const totalPages = servicesPage?.totalPages ?? 1
+
+  useEffect(() => {
+    if (!servicesPage) return
+    if (page > totalPages) setPage(totalPages)
+  }, [servicesPage, page, totalPages])
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
@@ -128,26 +174,12 @@ export default function ServicesPage() {
   }
 
   const filteredServices = useMemo(() => {
-    const byProject = services.filter((service) =>
-      projectFilter === 'ALL' ? true : service.projectId === projectFilter,
-    )
-
-    const byName = byProject.filter((service) => {
-      if (!nameFilter.trim()) return true
-      const q = nameFilter.toLowerCase()
-      return (
-        service.name.toLowerCase().includes(q)
-        || service.slug.toLowerCase().includes(q)
-        || (service.description ?? '').toLowerCase().includes(q)
-      )
-    })
-
-    return byName.filter((service) => {
+    return services.filter((service) => {
       const runtime = pingMap[service.id]?.status ?? 'UNKNOWN'
       if (statusTab === 'ALL') return true
       return runtime === statusTab
     })
-  }, [services, projectFilter, nameFilter, pingMap, statusTab])
+  }, [services, pingMap, statusTab])
 
   const statusCounts = services.reduce(
     (acc, service) => {
@@ -166,7 +198,7 @@ export default function ServicesPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Service Registry</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {services.length} registered service{services.length !== 1 ? 's' : ''}
+            {totalServices} registered service{totalServices !== 1 ? 's' : ''}
           </p>
         </div>
 
@@ -334,6 +366,18 @@ export default function ServicesPage() {
           })}
         </div>
       )}
+
+      <DataPaginator
+        page={page}
+        pageSize={pageSize}
+        total={totalServices}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        onPageSizeChange={(nextSize) => {
+          setPageSize(nextSize)
+          setPage(1)
+        }}
+      />
 
       <Dialog open={editUrlOpen} onOpenChange={setEditUrlOpen}>
         <DialogContent className="max-w-md">

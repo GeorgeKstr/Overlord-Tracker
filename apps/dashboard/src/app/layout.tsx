@@ -7,8 +7,17 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Platform Control Plane',
-  description: 'Internal developer platform',
+  title: {
+    default: 'Overlord Tracker',
+    template: '%s | Overlord Tracker',
+  },
+  description: 'Control plane for projects, tickets, and context APIs.',
+  applicationName: 'Overlord Tracker',
+  icons: {
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    shortcut: ['/icon.svg'],
+    apple: [{ url: '/icon.svg' }],
+  },
 }
 
 export default function RootLayout({

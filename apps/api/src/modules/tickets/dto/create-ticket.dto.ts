@@ -4,11 +4,13 @@ import {
   MaxLength,
   MinLength,
   IsIn,
+  IsBoolean,
 } from 'class-validator'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 
 const TICKET_STATUSES = ['OPEN', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED'] as const
 const TICKET_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const
+const TICKET_EFFORTS = ['MINOR', 'NORMAL', 'EPIC'] as const
 
 export class CreateTicketDto {
   @ApiProperty({ example: 'Fix login redirect bug' })
@@ -46,6 +48,16 @@ export class CreateTicketDto {
   @IsOptional()
   @IsString()
   serviceId?: string
+
+  @ApiPropertyOptional({ enum: TICKET_EFFORTS, description: 'Effort scale' })
+  @IsOptional()
+  @IsIn(TICKET_EFFORTS)
+  effort?: string
+
+  @ApiPropertyOptional({ description: 'Mark ticket as tested and working' })
+  @IsOptional()
+  @IsBoolean()
+  tested?: boolean
 
   @ApiPropertyOptional({ example: 'clxyz789', description: 'Parent ticket ID (for subtickets)' })
   @IsOptional()

@@ -42,14 +42,12 @@ export const authOptions: NextAuthOptions = {
     signIn: async ({ user }) => {
       // Promote the configured admin on every sign-in (Google + Credentials).
       const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase()
-      if (adminEmail && user.email?.toLowerCase() === adminEmail && user.id) {
-        await prisma.user.update({
-          where: { id: user.id },
+      if (adminEmail && user.email?.toLowerCase() === adminEmail) {
+        await prisma.user.updateMany({
+          where: { email: user.email },
           data: { role: 'ADMIN', status: 'APPROVED' },
         }).catch(() => {
-          // Swallow: on the very first OAuth sign-in the PrismaAdapter may not
-          // have committed the row yet.  The jwt callback below enforces
-          // ADMIN/APPROVED in the token regardless.
+          // Swallow: token callback below still enforces admin claims.
         })
       }
       return true
@@ -57,13 +55,31 @@ export const authOptions: NextAuthOptions = {
     jwt: async ({ token, user }) => {
       if (user) {
         token.sub = user.id
+        if (user.email) token.email = user.email
       }
 
       // Enforce admin override on every sign-in AND every subsequent refresh.
       // This keeps admin rights alive regardless of DB state or session age.
       const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase()
-      const tokenEmail = (token.email as string | undefined)?.toLowerCase()
-      if (adminEmail && tokenEmail === adminEmail) {
+      let effectiveEmail = ((user?.email as string | undefined) ?? (token.email as string | undefined))?.toLowerCase()
+
+      // Backfill token email if missing so admin checks remain stable on refresh.
+      if (!effectiveEmail && token.sub) {
+        try {
+          const dbIdentity = await prisma.user.findUnique({
+            where: { id: token.sub as string },
+            select: { email: true },
+          })
+          if (dbIdentity?.email) {
+            token.email = dbIdentity.email
+            effectiveEmail = dbIdentity.email.toLowerCase()
+          }
+        } catch {
+          // Ignore and continue with non-admin path.
+        }
+      }
+
+      if (adminEmail && effectiveEmail === adminEmail) {
         token.status = 'APPROVED'
         token.role = 'ADMIN'
         return token
@@ -71,21 +87,31 @@ export const authOptions: NextAuthOptions = {
 
       if (user) {
         // Initial sign-in: read role/status from DB for non-admin users
-        const dbUser = await prisma.user.findUnique({
-          where: { id: user.id },
-          select: { status: true, role: true },
-        })
-        token.status = dbUser?.status ?? 'PENDING'
-        token.role = dbUser?.role ?? 'USER'
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { status: true, role: true },
+          })
+          token.status = dbUser?.status ?? 'PENDING'
+          token.role = dbUser?.role ?? 'USER'
+        } catch {
+          // Avoid failing auth callback and bouncing back to /login if DB is unavailable.
+          token.status = token.status ?? 'PENDING'
+          token.role = token.role ?? 'USER'
+        }
       } else if (token.status !== 'APPROVED' && token.sub) {
         // Token refresh: re-check so approved users aren't stuck as PENDING
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.sub as string },
-          select: { status: true, role: true },
-        })
-        if (dbUser) {
-          token.status = dbUser.status
-          token.role = dbUser.role
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.sub as string },
+            select: { status: true, role: true },
+          })
+          if (dbUser) {
+            token.status = dbUser.status
+            token.role = dbUser.role
+          }
+        } catch {
+          // Keep existing token claims if DB cannot be reached.
         }
       }
       return token

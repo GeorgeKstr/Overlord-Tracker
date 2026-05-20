@@ -69,6 +69,9 @@ export interface Ticket {
   assignee: UserSummary | null
   serviceId: string | null
   service?: Service | null
+  project?: { id: string; name: string; key: string } | null
+  effort?: string | null
+  tested?: boolean
   parentTicketId: string | null
   createdAt: string
   updatedAt: string

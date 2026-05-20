@@ -3,8 +3,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import {
   ArrowLeft,
   AlertCircle,
@@ -14,17 +16,22 @@ import {
   Trash2,
   Plus,
   UserCircle2,
+  Paperclip,
+  Check,
+  Copy,
 } from 'lucide-react'
 import { api } from '@/lib/api-client'
+import { buildProjectApiUrl, formatContextApiUrl, getStoredOverlordBaseUrl } from '@/lib/overlord-links'
 import {
   TICKET_STATUS_LABELS,
   TICKET_PRIORITY_LABELS,
   TICKET_PRIORITY_COLORS,
+  TICKET_EFFORT_LABELS,
   formatDate,
   formatRelativeTime,
   cn,
 } from '@/lib/utils'
-import type { TicketDetail, Ticket, Label, Comment, ProjectMember, UserSummary, Project } from '@platform/shared-types'
+import type { TicketDetail, Ticket, Label, Comment, ProjectMember, UserSummary, Project, Service } from '@platform/shared-types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -63,6 +70,20 @@ export default function TicketDetailPage() {
   const [editingDescription, setEditingDescription] = useState(false)
   const [descDraft, setDescDraft] = useState('')
   const [addingLabel, setAddingLabel] = useState(false)
+  const [overlordBaseUrl, setOverlordBaseUrl] = useState('')
+  const [copiedApi, setCopiedApi] = useState(false)
+  const attachFileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const refresh = () => setOverlordBaseUrl(getStoredOverlordBaseUrl())
+    refresh()
+    window.addEventListener('storage', refresh)
+    window.addEventListener('overlord-base-url-changed', refresh)
+    return () => {
+      window.removeEventListener('storage', refresh)
+      window.removeEventListener('overlord-base-url-changed', refresh)
+    }
+  }, [])
 
   // ── Queries ────────────────────────────────────────────────────────────────
   const {
@@ -89,6 +110,12 @@ export default function TicketDetailPage() {
   const { data: project } = useQuery({
     queryKey: ['projects', ticket?.projectId],
     queryFn: () => api.get<Project>(`/projects/${ticket!.projectId}`),
+    enabled: !!ticket?.projectId,
+  })
+
+  const { data: services = [] } = useQuery({
+    queryKey: ['services', { projectId: ticket?.projectId }],
+    queryFn: () => api.get<Service[]>(`/services?projectId=${ticket!.projectId}`),
     enabled: !!ticket?.projectId,
   })
 
@@ -131,6 +158,33 @@ export default function TicketDetailPage() {
   const removeLabelMutation = useMutation({
     mutationFn: (labelId: string) =>
       api.delete(`/labels/ticket/${ticketId}/label/${labelId}`),
+    onSuccess: invalidate,
+  })
+
+  const uploadAttachmentMutation = useMutation({
+    mutationFn: (file: File) =>
+      new Promise<void>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = async () => {
+          try {
+            const dataUrl = reader.result as string
+            const base64 = dataUrl.split(',')[1]
+            await api.post(`/tickets/${ticketId}/attachments`, {
+              filename: file.name,
+              mimeType: file.type,
+              data: base64,
+            })
+            resolve()
+          } catch (e) { reject(e) }
+        }
+        reader.onerror = () => reject(reader.error)
+        reader.readAsDataURL(file)
+      }),
+    onSuccess: invalidate,
+  })
+
+  const deleteAttachmentMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/attachments/${id}`),
     onSuccess: invalidate,
   })
 
@@ -229,6 +283,38 @@ export default function TicketDetailPage() {
             </span>{' '}
             · {formatDate(ticket.createdAt)}
           </p>
+          {overlordBaseUrl && (
+            <div className="mt-1 space-y-1">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Context API url</p>
+              <div className="flex items-center gap-1.5 text-xs">
+                <a
+                  href={buildProjectApiUrl(overlordBaseUrl, ticket.projectId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="min-w-0 truncate text-muted-foreground hover:text-foreground underline underline-offset-2"
+                  title={buildProjectApiUrl(overlordBaseUrl, ticket.projectId)}
+                >
+                  {formatContextApiUrl(buildProjectApiUrl(overlordBaseUrl, ticket.projectId))}
+                </a>
+                <button
+                  type="button"
+                  className="inline-flex h-6 w-6 items-center justify-center rounded hover:bg-muted"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(buildProjectApiUrl(overlordBaseUrl, ticket.projectId))
+                      setCopiedApi(true)
+                      setTimeout(() => setCopiedApi(false), 1500)
+                    } catch {
+                      // Ignore clipboard failures.
+                    }
+                  }}
+                  title="Copy project API URL"
+                >
+                  {copiedApi ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <Button
@@ -280,16 +366,107 @@ export default function TicketDetailPage() {
                 </div>
               ) : (
                 <div
-                  className="text-sm text-foreground/80 min-h-[3rem] cursor-text rounded hover:bg-muted/50 p-2 -m-2 transition-colors whitespace-pre-wrap"
+                  className="text-sm text-foreground/80 min-h-[3rem] cursor-text rounded hover:bg-muted/50 p-2 -m-2 transition-colors"
                   onClick={startEditDescription}
                   title="Click to edit"
                 >
-                  {ticket.description || (
+                  {ticket.description ? (
+                    <div className="prose prose-sm dark:prose-invert max-w-none [&_a]:text-primary [&_a]:underline">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {ticket.description}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
                     <span className="text-muted-foreground italic">
                       No description. Click to add one.
                     </span>
                   )}
                 </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Attachments */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                  <Paperclip className="h-3.5 w-3.5" />
+                  Attachments
+                  {(ticket.attachments?.length ?? 0) > 0 && (
+                    <Badge variant="secondary" className="text-xs ml-1">
+                      {ticket.attachments!.length}
+                    </Badge>
+                  )}
+                </CardTitle>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs gap-1"
+                  disabled={uploadAttachmentMutation.isPending}
+                  onClick={() => attachFileRef.current?.click()}
+                >
+                  <Plus className="h-3 w-3" />
+                  {uploadAttachmentMutation.isPending ? 'Uploading…' : 'Upload image'}
+                </Button>
+                <input
+                  ref={attachFileRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) uploadAttachmentMutation.mutate(file)
+                    e.target.value = ''
+                  }}
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              {(ticket.attachments?.length ?? 0) === 0 ? (
+                <p className="text-sm text-muted-foreground">No attachments yet.</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {ticket.attachments!.map((a) => (
+                    <div key={a.id} className="group relative rounded-md overflow-hidden border bg-muted aspect-video">
+                      <img
+                        src={`data:${a.mimeType};base64,${a.data}`}
+                        alt={a.filename}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <a
+                          href={`data:${a.mimeType};base64,${a.data}`}
+                          download={a.filename}
+                          className="text-white hover:text-primary transition-colors"
+                          title="Download"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Paperclip className="h-4 w-4" />
+                        </a>
+                        {(session?.user?.id === a.uploadedById) && (
+                          <button
+                            type="button"
+                            title="Delete"
+                            className="text-white hover:text-destructive transition-colors"
+                            disabled={deleteAttachmentMutation.isPending}
+                            onClick={() => deleteAttachmentMutation.mutate(a.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                      <p className="absolute bottom-0 left-0 right-0 px-1.5 py-1 text-[10px] text-white bg-black/60 truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                        {a.filename}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {uploadAttachmentMutation.isError && (
+                <p className="mt-2 text-xs text-destructive">
+                  {(uploadAttachmentMutation.error as Error)?.message ?? 'Upload failed'}
+                </p>
               )}
             </CardContent>
           </Card>
@@ -364,6 +541,43 @@ export default function TicketDetailPage() {
 
         {/* ── Sidebar ─────────────────────────────────────────────────────── */}
         <div className="space-y-4">
+          {/* Metadata */}
+          <div className="space-y-2 text-xs text-muted-foreground">
+            <div className="flex justify-between">
+              <span>Created</span>
+              <span>{formatDate(ticket.createdAt)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Updated</span>
+              <span>{formatRelativeTime(ticket.updatedAt)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Author</span>
+              <span className="text-foreground">
+                {ticket.author.name ?? ticket.author.email}
+              </span>
+            </div>
+            {ticket.assignee && (
+              <div className="flex justify-between">
+                <span>Assignee</span>
+                <span className="text-foreground">
+                  {ticket.assignee.name ?? ticket.assignee.email}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span>Project</span>
+              <Link
+                href={`/projects/${ticket.projectId}`}
+                className="text-primary hover:underline"
+              >
+                View
+              </Link>
+            </div>
+          </div>
+
+          <Separator />
+
           {/* Status */}
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-1.5">Status</p>
@@ -438,6 +652,68 @@ export default function TicketDetailPage() {
             </Select>
           </div>
 
+          {/* Service */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">Service</p>
+            <Select
+              value={ticket.serviceId ?? '__none__'}
+              onValueChange={(v) => updateMutation.mutate({ serviceId: v === '__none__' ? null : v } as any)}
+            >
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="No service" />
+              </SelectTrigger>
+              <SelectContent position="popper" side="bottom" sideOffset={6} className="z-[120] bg-popover">
+                <SelectItem value="__none__">No service</SelectItem>
+                {services.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Effort */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">Effort</p>
+            <Select
+              value={ticket.effort ?? '__none__'}
+              onValueChange={(v) => updateMutation.mutate({ effort: v === '__none__' ? null : v } as any)}
+            >
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Not set" />
+              </SelectTrigger>
+              <SelectContent position="popper" side="bottom" sideOffset={6} className="z-[120] bg-popover">
+                <SelectItem value="__none__">Not set</SelectItem>
+                {Object.entries(TICKET_EFFORT_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Tested */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">Quality</p>
+            <button
+              type="button"
+              disabled={updateMutation.isPending}
+              onClick={() => updateMutation.mutate({ tested: !ticket.tested } as any)}
+              className={cn(
+                'flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm transition-colors',
+                ticket.tested
+                  ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                  : 'border-input bg-background text-muted-foreground hover:bg-muted',
+              )}
+            >
+              <span className={cn(
+                'flex h-4 w-4 items-center justify-center rounded border transition-colors shrink-0',
+                ticket.tested ? 'bg-emerald-500 border-emerald-500' : 'border-input',
+              )}>
+                {ticket.tested && <Check className="h-2.5 w-2.5 text-white" />}
+              </span>
+              Tested &amp; working
+            </button>
+          </div>
+
           {/* Labels */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
@@ -487,42 +763,6 @@ export default function TicketDetailPage() {
             </div>
           </div>
 
-          <Separator />
-
-          {/* Metadata */}
-          <div className="space-y-2 text-xs text-muted-foreground">
-            <div className="flex justify-between">
-              <span>Created</span>
-              <span>{formatDate(ticket.createdAt)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Updated</span>
-              <span>{formatRelativeTime(ticket.updatedAt)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Author</span>
-              <span className="text-foreground">
-                {ticket.author.name ?? ticket.author.email}
-              </span>
-            </div>
-            {ticket.assignee && (
-              <div className="flex justify-between">
-                <span>Assignee</span>
-                <span className="text-foreground">
-                  {ticket.assignee.name ?? ticket.assignee.email}
-                </span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span>Project</span>
-              <Link
-                href={`/projects/${ticket.projectId}`}
-                className="text-primary hover:underline"
-              >
-                View
-              </Link>
-            </div>
-          </div>
         </div>
       </div>
     </div>

@@ -17,12 +17,31 @@ import {
   ApiOperation,
   ApiQuery,
 } from '@nestjs/swagger'
+import { IsOptional, IsString } from 'class-validator'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import { ServicesService } from './services.service'
 import { CreateServiceDto } from './dto/create-service.dto'
 import { UpdateServiceDto } from './dto/update-service.dto'
 import { User } from '@prisma/client'
+
+class FindServicesQueryDto {
+  @IsOptional()
+  @IsString()
+  projectId?: string
+
+  @IsOptional()
+  @IsString()
+  q?: string
+
+  @IsOptional()
+  @IsString()
+  page?: string
+
+  @IsOptional()
+  @IsString()
+  pageSize?: string
+}
 
 @ApiTags('services')
 @ApiBearerAuth()
@@ -40,9 +59,21 @@ export class ServicesController {
   @Get()
   @ApiOperation({ summary: 'List all services (optionally filter by project)' })
   @ApiQuery({ name: 'projectId', required: false })
-  findAll(@CurrentUser() user: User, @Query('projectId') projectId?: string) {
-    if (projectId) return this.servicesService.findByProject(projectId, user.id)
-    return this.servicesService.findAll(user.id)
+  @ApiQuery({ name: 'q', required: false })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'pageSize', required: false })
+  findAll(@CurrentUser() user: User, @Query() query: FindServicesQueryDto) {
+    const hasPaging = Boolean(query.page || query.pageSize)
+    if (hasPaging) {
+      return this.servicesService.findAllPaginated(user.id, {
+        projectId: query.projectId,
+        q: query.q,
+        page: query.page ? Number(query.page) : undefined,
+        pageSize: query.pageSize ? Number(query.pageSize) : undefined,
+      })
+    }
+    if (query.projectId) return this.servicesService.findByProject(query.projectId, user.id, query.q)
+    return this.servicesService.findAll(user.id, query.q)
   }
 
   @Get(':id')

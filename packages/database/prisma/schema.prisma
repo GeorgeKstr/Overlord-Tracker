@@ -146,6 +146,9 @@ model Ticket {
   serviceId String?
   service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
 
+  effort    String?  // MINOR | NORMAL | EPIC
+  tested    Boolean  @default(false)
+
   // Self-referencing relation for subtickets
   parentTicketId String?
   parentTicket   Ticket?  @relation("SubTickets", fields: [parentTicketId], references: [id])

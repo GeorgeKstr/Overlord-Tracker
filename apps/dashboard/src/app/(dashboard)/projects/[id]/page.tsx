@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useParams, useSearchParams } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState } from 'react'
@@ -24,8 +24,12 @@ import {
   Copy,
   Check,
   Trash2,
+  ExternalLink,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react'
 import { api } from '@/lib/api-client'
+import { buildProjectApiUrl, formatContextApiUrl, getStoredOverlordBaseUrl } from '@/lib/overlord-links'
 import { formatRelativeTime } from '@/lib/utils'
 import type {
   Project,
@@ -33,6 +37,7 @@ import type {
   Ticket as TicketType,
   ProjectMember,
   ProjectKnowledgeVersion,
+  UserSummary,
 } from '@platform/shared-types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -457,6 +462,7 @@ function MermaidPreview({ chart }: { chart: string }) {
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('services')
@@ -465,17 +471,27 @@ export default function ProjectDetailPage() {
   const [addServiceOpen, setAddServiceOpen] = useState(false)
   const [editingField, setEditingField] = useState<KnowledgeField | null>(null)
   const [editForm, setEditForm] = useState({ name: '', description: '', gitRepoUrl: '', websiteUrl: '' })
+  const [deleteProjectOpen, setDeleteProjectOpen] = useState(false)
+  const [deleteProjectNameInput, setDeleteProjectNameInput] = useState('')
   const [memberEmail, setMemberEmail] = useState('')
   const [serviceForm, setServiceForm] = useState({ name: '', description: '' })
-  const [serviceUrlDrafts, setServiceUrlDrafts] = useState<Record<string, { baseUrl: string; healthUrl: string }>>({})
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
+  const [serviceEditDrafts, setServiceEditDrafts] = useState<Record<string, { name: string; description: string; baseUrl: string; healthUrl: string }>>({})
   const [apiSpecTarget, setApiSpecTarget] = useState<string>('project')
   const [serviceSpecDrafts, setServiceSpecDrafts] = useState<Record<string, string>>({})
-  const [copiedLink, setCopiedLink] = useState<'repo' | 'website' | null>(null)
+  const [copiedLink, setCopiedLink] = useState<string | null>(null)
+  const [overlordBaseUrl, setOverlordBaseUrl] = useState('')
   const [selectedHistoryId, setSelectedHistoryId] = useState<Record<KnowledgeField, string | null>>({
     roadmap: null,
     entityGraph: null,
     readmeMd: null,
     apiSpec: null,
+  })
+  const [historyOpen, setHistoryOpen] = useState<Record<KnowledgeField, boolean>>({
+    roadmap: false,
+    entityGraph: false,
+    readmeMd: false,
+    apiSpec: false,
   })
   const [draggedRoadmapIndex, setDraggedRoadmapIndex] = useState<number | null>(null)
   const [knowledgeDrafts, setKnowledgeDrafts] = useState<Record<KnowledgeField, string>>({
@@ -485,6 +501,17 @@ export default function ProjectDetailPage() {
     apiSpec: '',
   })
 
+  useEffect(() => {
+    const refresh = () => setOverlordBaseUrl(getStoredOverlordBaseUrl())
+    refresh()
+    window.addEventListener('storage', refresh)
+    window.addEventListener('overlord-base-url-changed', refresh)
+    return () => {
+      window.removeEventListener('storage', refresh)
+      window.removeEventListener('overlord-base-url-changed', refresh)
+    }
+  }, [])
+
   const { data: project, isLoading: loadingProject, isError: projectLoadError, error: projectError } = useQuery({
     queryKey: ['projects', id],
     queryFn: () => api.get<Project>(`/projects/${id}`),
@@ -493,7 +520,7 @@ export default function ProjectDetailPage() {
 
   const { data: me } = useQuery({
     queryKey: ['me'],
-    queryFn: () => api.get<{ id: string; role?: string }>('/users/me'),
+    queryFn: () => api.get<UserSummary>('/users/me'),
   })
 
   const { data: tickets = [], isLoading: loadingTickets } = useQuery({
@@ -584,15 +611,18 @@ export default function ProjectDetailPage() {
     },
   })
 
-  const saveServiceUrlsMutation = useMutation({
-    mutationFn: ({ serviceId, baseUrl, healthUrl }: { serviceId: string; baseUrl: string; healthUrl: string }) =>
+  const updateServiceMutation = useMutation({
+    mutationFn: ({ serviceId, name, description, baseUrl, healthUrl }: { serviceId: string; name: string; description: string; baseUrl: string; healthUrl: string }) =>
       api.patch<Service>(`/services/${serviceId}`, {
-        baseUrl: baseUrl || undefined,
-        healthUrl: healthUrl || undefined,
+        name: name.trim() || undefined,
+        description: description.trim() || undefined,
+        baseUrl: baseUrl.trim() || undefined,
+        healthUrl: healthUrl.trim() || undefined,
       }),
-    onSuccess: () => {
+    onSuccess: (_result, vars) => {
       queryClient.invalidateQueries({ queryKey: ['services', { projectId: id }] })
       queryClient.invalidateQueries({ queryKey: ['projects', id] })
+      setEditingServiceId(null)
     },
   })
 
@@ -603,6 +633,15 @@ export default function ProjectDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['projects', id] })
       queryClient.invalidateQueries({ queryKey: ['projects', id, 'knowledge-history'] })
       setEditingField(null)
+    },
+  })
+
+  const deleteProjectMutation = useMutation({
+    mutationFn: () => api.delete(`/projects/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      queryClient.invalidateQueries({ queryKey: ['tickets'] })
+      router.push('/projects')
     },
   })
 
@@ -641,11 +680,13 @@ export default function ProjectDetailPage() {
   }, [services, apiSpecTarget])
 
   useEffect(() => {
-    setServiceUrlDrafts((current) => {
+    setServiceEditDrafts((current) => {
       const next = { ...current }
       for (const service of services) {
         if (!next[service.id]) {
           next[service.id] = {
+            name: service.name,
+            description: service.description ?? '',
             baseUrl: service.baseUrl ?? '',
             healthUrl: service.healthUrl ?? '',
           }
@@ -691,7 +732,7 @@ export default function ProjectDetailPage() {
     setEditOpen(true)
   }
 
-  const copyLink = async (kind: 'repo' | 'website', url: string) => {
+  const copyLink = async (kind: string, url: string) => {
     try {
       await navigator.clipboard.writeText(url)
       setCopiedLink(kind)
@@ -713,6 +754,17 @@ export default function ProjectDetailPage() {
     setServiceSpecDrafts((drafts) => ({ ...drafts, [selectedService.id]: '' }))
   }
 
+  const canDeleteProject =
+    me?.id === project?.ownerId ||
+    me?.role === 'ADMIN' ||
+    me?.isProtected === true
+
+  const handleDeleteProject = () => {
+    if (!project || !canDeleteProject || deleteProjectMutation.isPending) return
+    if (deleteProjectNameInput.trim() !== project.name) return
+    deleteProjectMutation.mutate()
+  }
+
   if (loadingProject) return <div className="animate-pulse h-8 w-48 bg-muted rounded" />
   if (projectLoadError) {
     return (
@@ -726,8 +778,11 @@ export default function ProjectDetailPage() {
 
   const toInitials = (nameOrEmail: string) => nameOrEmail.slice(0, 2).toUpperCase()
   const doneTickets = tickets.filter((t) => t.status === 'DONE').length
+  const inReviewTickets = tickets.filter((t) => t.status === 'IN_REVIEW').length
   const totalTickets = tickets.length
-  const progressPct = totalTickets === 0 ? 0 : Math.round((doneTickets / totalTickets) * 100)
+  const donePct = totalTickets === 0 ? 0 : Math.round((doneTickets / totalTickets) * 100)
+  const inReviewPct = totalTickets === 0 ? 0 : Math.round((inReviewTickets / totalTickets) * 100)
+  const progressPct = donePct + inReviewPct
   const historyBySection = knowledgeHistory.reduce<Record<KnowledgeField, ProjectKnowledgeVersion[]>>(
     (acc, entry) => {
       const section = entry.section as KnowledgeField
@@ -820,6 +875,11 @@ export default function ProjectDetailPage() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-semibold tracking-tight truncate">{project.name}</h1>
+            {project.websiteUrl && (
+              <a href={project.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors" title={project.websiteUrl}>
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            )}
             <Badge variant="outline">{project.status}</Badge>
             <button
               onClick={openEdit}
@@ -832,6 +892,20 @@ export default function ProjectDetailPage() {
           <code className="text-xs text-muted-foreground font-mono">{project.key}</code>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {canDeleteProject && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                setDeleteProjectNameInput('')
+                setDeleteProjectOpen(true)
+              }}
+              disabled={deleteProjectMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {deleteProjectMutation.isPending ? 'Deleting...' : 'Delete'}
+            </Button>
+          )}
           <Button asChild variant="outline" size="sm">
             <Link href={`/projects/${id}/labels`}>
               <Tag className="h-4 w-4 mr-2" />Labels
@@ -846,6 +920,36 @@ export default function ProjectDetailPage() {
       </div>
 
       {project.description && <p className="text-muted-foreground">{project.description}</p>}
+      {overlordBaseUrl && (
+        <div className="space-y-1">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Context API url</p>
+          <div className="flex items-center gap-1.5 text-xs">
+            <a
+              href={buildProjectApiUrl(overlordBaseUrl, project.id)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="min-w-0 truncate text-muted-foreground hover:text-foreground underline underline-offset-2"
+              title={buildProjectApiUrl(overlordBaseUrl, project.id)}
+            >
+              {formatContextApiUrl(buildProjectApiUrl(overlordBaseUrl, project.id))}
+            </a>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 shrink-0"
+              onClick={() => copyLink('project-api', buildProjectApiUrl(overlordBaseUrl, project.id))}
+              title="Copy project API URL"
+            >
+              {copiedLink === 'project-api' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+            </Button>
+          </div>
+        </div>
+      )}
+      {deleteProjectMutation.isError && (
+        <p className="text-sm text-destructive">
+          {(deleteProjectMutation.error as Error)?.message ?? 'Could not delete project'}
+        </p>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -860,9 +964,12 @@ export default function ProjectDetailPage() {
                 <p className="text-sm text-muted-foreground">{doneTickets}/{totalTickets} tickets</p>
               </div>
               <div className="h-2 rounded-full bg-muted overflow-hidden">
-                <div className="h-full bg-primary transition-all" style={{ width: `${progressPct}%` }} />
+                <div className="h-full flex">
+                  <div className="h-full bg-primary transition-all" style={{ width: `${donePct}%` }} />
+                  <div className="h-full bg-amber-500 transition-all" style={{ width: `${inReviewPct}%` }} />
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">{progressPct}% complete</p>
+              <p className="text-xs text-muted-foreground">{progressPct}% complete ({doneTickets} done{inReviewTickets > 0 ? `, ${inReviewTickets} in review` : ''})</p>
             </CardContent>
           </Card>
         </Link>
@@ -956,7 +1063,7 @@ export default function ProjectDetailPage() {
         <TabsList className="flex h-auto w-full flex-wrap justify-start">
           <TabsTrigger value="services">Services ({services.length})</TabsTrigger>
           <TabsTrigger value="tickets">Tickets ({tickets.length})</TabsTrigger>
-          <TabsTrigger value="readmeMd">README.md</TabsTrigger>
+          <TabsTrigger value="readmeMd">Readme</TabsTrigger>
           <TabsTrigger value="apiSpec">API Endpoints</TabsTrigger>
           <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
           <TabsTrigger value="entityGraph">Entity Graph</TabsTrigger>
@@ -1051,75 +1158,148 @@ export default function ProjectDetailPage() {
               ) : services.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No services yet.</p>
               ) : (
-                <div className="space-y-2">
-                  {services.map((service) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {services.map((service) => {
+                    const isEditingSvc = editingServiceId === service.id
+                    const draft = serviceEditDrafts[service.id]
+                    return (
                     <div key={service.id} className="rounded-md border p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-medium">{service.name}</p>
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          {isEditingSvc ? (
+                            <Input
+                              className="h-7 text-sm font-medium"
+                              value={draft?.name ?? service.name}
+                              onChange={(e) => setServiceEditDrafts((d) => ({ ...d, [service.id]: { ...d[service.id], name: e.target.value } }))}
+                            />
+                          ) : (
+                            <p className="text-sm font-medium truncate">{service.name}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
                           <Badge variant="outline" className="text-[10px]">{service.slug}</Badge>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                            title="Delete service"
-                            disabled={deleteServiceMutation.isPending}
-                            onClick={() => {
-                              if (!window.confirm(`Delete service \"${service.name}\"?`)) return
-                              deleteServiceMutation.mutate(service.id)
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {isEditingSvc ? (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setEditingServiceId(null)}
+                                disabled={updateServiceMutation.isPending}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                size="sm"
+                                disabled={updateServiceMutation.isPending}
+                                onClick={() => {
+                                  const d = serviceEditDrafts[service.id]
+                                  updateServiceMutation.mutate({
+                                    serviceId: service.id,
+                                    name: d?.name ?? service.name,
+                                    description: d?.description ?? '',
+                                    baseUrl: d?.baseUrl ?? '',
+                                    healthUrl: d?.healthUrl ?? '',
+                                  })
+                                }}
+                              >
+                                {updateServiceMutation.isPending ? 'Saving…' : 'Save'}
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                title="Edit service"
+                                onClick={() => {
+                                  setServiceEditDrafts((d) => ({
+                                    ...d,
+                                    [service.id]: {
+                                      name: service.name,
+                                      description: service.description ?? '',
+                                      baseUrl: service.baseUrl ?? '',
+                                      healthUrl: service.healthUrl ?? '',
+                                    },
+                                  }))
+                                  setEditingServiceId(service.id)
+                                }}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                title="Delete service"
+                                disabled={deleteServiceMutation.isPending}
+                                onClick={() => {
+                                  if (!window.confirm(`Delete service "${service.name}"?`)) return
+                                  deleteServiceMutation.mutate(service.id)
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
-                      {service.description ? (
+
+                      {isEditingSvc ? (
+                        <Textarea
+                          className="mt-2 text-xs"
+                          rows={2}
+                          placeholder="Description (optional)"
+                          value={draft?.description ?? ''}
+                          onChange={(e) => setServiceEditDrafts((d) => ({ ...d, [service.id]: { ...d[service.id], description: e.target.value } }))}
+                        />
+                      ) : service.description ? (
                         <p className="mt-1 text-xs text-muted-foreground">{service.description}</p>
                       ) : null}
-                      <div className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_auto] md:items-end">
+
+                      <div className="mt-3 space-y-2">
                         <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Base URL</Label>
-                          <Input
-                            placeholder="https://service.example.com"
-                            value={serviceUrlDrafts[service.id]?.baseUrl ?? ''}
-                            onChange={(e) => setServiceUrlDrafts((drafts) => ({
-                              ...drafts,
-                              [service.id]: {
-                                baseUrl: e.target.value,
-                                healthUrl: drafts[service.id]?.healthUrl ?? service.healthUrl ?? '',
-                              },
-                            }))}
-                          />
+                          <Label className="block text-xs text-muted-foreground">Base URL</Label>
+                          {isEditingSvc ? (
+                            <Input
+                              placeholder="https://service.example.com"
+                              value={draft?.baseUrl ?? ''}
+                              onChange={(e) => setServiceEditDrafts((d) => ({ ...d, [service.id]: { ...d[service.id], baseUrl: e.target.value } }))}
+                            />
+                          ) : service.baseUrl ? (
+                            <div className="inline-flex items-center gap-1 max-w-full">
+                              <a href={service.baseUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground font-mono hover:text-primary underline underline-offset-2 break-all">{service.baseUrl}</a>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => copyLink(`svc-${service.id}-base`, service.baseUrl!)} title="Copy URL">
+                                {copiedLink === `svc-${service.id}-base` ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                              </Button>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground font-mono"><span className="italic opacity-50">not set</span></p>
+                          )}
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Health URL</Label>
-                          <Input
-                            placeholder="https://service.example.com/health"
-                            value={serviceUrlDrafts[service.id]?.healthUrl ?? ''}
-                            onChange={(e) => setServiceUrlDrafts((drafts) => ({
-                              ...drafts,
-                              [service.id]: {
-                                baseUrl: drafts[service.id]?.baseUrl ?? service.baseUrl ?? '',
-                                healthUrl: e.target.value,
-                              },
-                            }))}
-                          />
+                          <Label className="block text-xs text-muted-foreground">Health URL</Label>
+                          {isEditingSvc ? (
+                            <Input
+                              placeholder="https://service.example.com/health"
+                              value={draft?.healthUrl ?? ''}
+                              onChange={(e) => setServiceEditDrafts((d) => ({ ...d, [service.id]: { ...d[service.id], healthUrl: e.target.value } }))}
+                            />
+                          ) : service.healthUrl ? (
+                            <div className="inline-flex items-center gap-1 max-w-full">
+                              <a href={service.healthUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground font-mono hover:text-primary underline underline-offset-2 break-all">{service.healthUrl}</a>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => copyLink(`svc-${service.id}-health`, service.healthUrl!)} title="Copy URL">
+                                {copiedLink === `svc-${service.id}-health` ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                              </Button>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground font-mono"><span className="italic opacity-50">not set</span></p>
+                          )}
                         </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={saveServiceUrlsMutation.isPending}
-                          onClick={() => saveServiceUrlsMutation.mutate({
-                            serviceId: service.id,
-                            baseUrl: (serviceUrlDrafts[service.id]?.baseUrl ?? '').trim(),
-                            healthUrl: (serviceUrlDrafts[service.id]?.healthUrl ?? '').trim(),
-                          })}
-                        >
-                          {saveServiceUrlsMutation.isPending ? 'Saving…' : 'Save URLs'}
-                        </Button>
                       </div>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
               {deleteServiceMutation.isError ? (
@@ -1127,9 +1307,9 @@ export default function ProjectDetailPage() {
                   {(deleteServiceMutation.error as Error)?.message ?? 'Failed to delete service'}
                 </p>
               ) : null}
-              {saveServiceUrlsMutation.isError ? (
+              {updateServiceMutation.isError ? (
                 <p className="mt-2 text-sm text-destructive">
-                  {(saveServiceUrlsMutation.error as Error)?.message ?? 'Failed to save service URLs'}
+                  {(updateServiceMutation.error as Error)?.message ?? 'Failed to save service'}
                 </p>
               ) : null}
             </CardContent>
@@ -1139,7 +1319,7 @@ export default function ProjectDetailPage() {
         {/* Members/collaborators tab */}
         <TabsContent value="members" className="mt-4">
           <div className="flex justify-end mb-3">
-            {(me?.id === project.ownerId || me?.role === 'ADMIN' || me?.role === 'MODERATOR') && (
+            {(me?.id === project.ownerId || me?.role === 'ADMIN' || me?.role === 'MODERATOR' || me?.isProtected === true) && (
               <Button size="sm" onClick={() => setAddMemberOpen(true)}>
                 <UserPlus className="h-4 w-4 mr-2" />Add collaborator
               </Button>
@@ -1367,19 +1547,55 @@ export default function ProjectDetailPage() {
                     />
                   )
                 ) : (
-                  <div className="rounded-md border bg-background p-4">
-                    {renderKnowledgeView(field, activeContent)}
-                  </div>
+                  (() => {
+                    const showServicesFallback =
+                      field === 'apiSpec' &&
+                      !apiSpecService &&
+                      !activeContent.trim() &&
+                      services.some((s) => s.apiSpec?.trim())
+                    if (showServicesFallback) {
+                      const withSpecs = services.filter((s) => s.apiSpec?.trim())
+                      return (
+                        <div className="rounded-md border bg-background p-4">
+                          <p className="text-xs text-muted-foreground italic mb-4">No global API spec set. Showing individual service specs.</p>
+                          {withSpecs.map((s, i) => (
+                            <div key={s.id}>
+                              {i > 0 && <div className="my-4 border-t" />}
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-xs font-semibold">{s.name}</span>
+                                <Badge variant="outline" className="text-[10px]">{s.slug}</Badge>
+                              </div>
+                              {renderKnowledgeView('apiSpec', s.apiSpec ?? '')}
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    }
+                    return (
+                      <div className="rounded-md border bg-background p-4">
+                        {renderKnowledgeView(field, activeContent)}
+                      </div>
+                    )
+                  })()
                 )}
               </div>
 
               <div className={isFramelessField ? 'space-y-3' : 'rounded-lg border bg-card p-4 space-y-3'}>
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Version History</p>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryOpen((current) => ({ ...current, [field]: !current[field] }))}
+                    className="inline-flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
+                  >
+                    {historyOpen[field] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    Version History
+                  </button>
                   <Badge variant="outline">{sectionHistory.length} versions</Badge>
                 </div>
 
-                {apiSpecService ? (
+                {!historyOpen[field] ? (
+                  <p className="text-sm text-muted-foreground">History is collapsed.</p>
+                ) : apiSpecService ? (
                   <p className="text-sm text-muted-foreground">Service API spec history is not tracked yet.</p>
                 ) : sectionHistory.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No previous versions yet.</p>
@@ -1483,6 +1699,37 @@ export default function ProjectDetailPage() {
             <Button onClick={() => updateMutation.mutate(editForm)}
               disabled={!editForm.name || updateMutation.isPending}>
               {updateMutation.isPending ? 'Saving…' : 'Save changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteProjectOpen} onOpenChange={setDeleteProjectOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Delete project</DialogTitle></DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              Type <span className="font-semibold text-foreground">{project.name}</span> to confirm deletion.
+            </p>
+            <Input
+              placeholder="Project name"
+              value={deleteProjectNameInput}
+              onChange={(e) => setDeleteProjectNameInput(e.target.value)}
+            />
+            {deleteProjectMutation.isError ? (
+              <p className="text-sm text-destructive">
+                {(deleteProjectMutation.error as Error)?.message ?? 'Could not delete project'}
+              </p>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteProjectOpen(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteProject}
+              disabled={deleteProjectMutation.isPending || deleteProjectNameInput.trim() !== project.name}
+            >
+              {deleteProjectMutation.isPending ? 'Deleting...' : 'Delete project'}
             </Button>
           </DialogFooter>
         </DialogContent>

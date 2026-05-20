@@ -13,6 +13,7 @@ const userSelect = { id: true, name: true, email: true, image: true }
 const ticketInclude = {
   author: { select: userSelect },
   assignee: { select: userSelect },
+  project: { select: { id: true, name: true, key: true } },
   service: { select: { id: true, name: true, slug: true, description: true, status: true, projectId: true } },
   _count: { select: { subTickets: true, comments: true } },
   labels: { include: { label: true } },
@@ -30,6 +31,47 @@ export class TicketsService {
     return limit && Number.isFinite(limit)
       ? Math.max(1, Math.min(200, Math.trunc(limit)))
       : undefined
+  }
+
+  private normalizePage(page?: number) {
+    if (!page || !Number.isFinite(page)) return 1
+    return Math.max(1, Math.trunc(page))
+  }
+
+  private normalizePageSize(pageSize?: number) {
+    if (!pageSize || !Number.isFinite(pageSize)) return 20
+    return Math.max(1, Math.min(100, Math.trunc(pageSize)))
+  }
+
+  private buildTicketFilters(
+    filters?: {
+      status?: string
+      priority?: string
+      assigneeId?: string
+      serviceId?: string
+      effort?: string
+      q?: string
+    },
+  ) {
+    return {
+      ...(filters?.status ? { status: filters.status as any } : {}),
+      ...(filters?.priority ? { priority: filters.priority as any } : {}),
+      ...(filters?.assigneeId ? { assigneeId: filters.assigneeId } : {}),
+      ...(filters?.serviceId
+        ? (filters.serviceId === '__none__' ? { serviceId: null } : { serviceId: filters.serviceId })
+        : {}),
+      ...(filters?.effort
+        ? (filters.effort === '__none__' ? { effort: null } : { effort: filters.effort as any })
+        : {}),
+      ...(filters?.q
+        ? {
+            OR: [
+              { title: { contains: filters.q } },
+              { description: { contains: filters.q } },
+            ],
+          }
+        : {}),
+    }
   }
 
   private async assertProjectAccess(projectId: string, userId: string) {
@@ -81,7 +123,15 @@ export class TicketsService {
   findByProject(
     projectId: string,
     userId: string,
-    filters?: { status?: string; priority?: string; assigneeId?: string; q?: string; limit?: number },
+    filters?: {
+      status?: string
+      priority?: string
+      assigneeId?: string
+      serviceId?: string
+      effort?: string
+      q?: string
+      limit?: number
+    },
   ) {
     if (!projectId) {
       throw new BadRequestException('projectId is required')
@@ -93,17 +143,7 @@ export class TicketsService {
       where: {
         projectId,
         parentTicketId: null,
-        ...(filters?.status ? { status: filters.status as any } : {}),
-        ...(filters?.priority ? { priority: filters.priority as any } : {}),
-        ...(filters?.assigneeId ? { assigneeId: filters.assigneeId } : {}),
-        ...(filters?.q
-          ? {
-              OR: [
-                { title: { contains: filters.q } },
-                { description: { contains: filters.q } },
-              ],
-            }
-          : {}),
+        ...this.buildTicketFilters(filters),
       },
       include: ticketInclude,
       orderBy: { createdAt: 'desc' },
@@ -113,7 +153,15 @@ export class TicketsService {
 
   findAllAccessible(
     userId: string,
-    filters?: { status?: string; priority?: string; assigneeId?: string; q?: string; limit?: number },
+    filters?: {
+      status?: string
+      priority?: string
+      assigneeId?: string
+      serviceId?: string
+      effort?: string
+      q?: string
+      limit?: number
+    },
   ) {
     const take = this.normalizeTake(filters?.limit)
 
@@ -126,22 +174,109 @@ export class TicketsService {
             { members: { some: { userId } } },
           ],
         },
-        ...(filters?.status ? { status: filters.status as any } : {}),
-        ...(filters?.priority ? { priority: filters.priority as any } : {}),
-        ...(filters?.assigneeId ? { assigneeId: filters.assigneeId } : {}),
-        ...(filters?.q
-          ? {
-              OR: [
-                { title: { contains: filters.q } },
-                { description: { contains: filters.q } },
-              ],
-            }
-          : {}),
+        ...this.buildTicketFilters(filters),
       },
       include: ticketInclude,
       orderBy: { createdAt: 'desc' },
       ...(take ? { take } : {}),
     })
+  }
+
+  async findByProjectPaginated(
+    projectId: string,
+    userId: string,
+    filters?: {
+      status?: string
+      priority?: string
+      assigneeId?: string
+      serviceId?: string
+      effort?: string
+      q?: string
+      page?: number
+      pageSize?: number
+    },
+  ) {
+    if (!projectId) {
+      throw new BadRequestException('projectId is required')
+    }
+
+    await this.assertProjectAccess(projectId, userId)
+    const page = this.normalizePage(filters?.page)
+    const pageSize = this.normalizePageSize(filters?.pageSize)
+    const where = {
+      projectId,
+      parentTicketId: null,
+      ...this.buildTicketFilters(filters),
+    }
+
+    const [total, items] = await Promise.all([
+      this.prisma.ticket.count({ where }),
+      this.prisma.ticket.findMany({
+        where,
+        include: ticketInclude,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ])
+
+    const totalPages = Math.max(1, Math.ceil(total / pageSize))
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages,
+    }
+  }
+
+  async findAllAccessiblePaginated(
+    userId: string,
+    filters?: {
+      status?: string
+      priority?: string
+      assigneeId?: string
+      serviceId?: string
+      effort?: string
+      q?: string
+      page?: number
+      pageSize?: number
+      projectId?: string
+    },
+  ) {
+    const page = this.normalizePage(filters?.page)
+    const pageSize = this.normalizePageSize(filters?.pageSize)
+    const where = {
+      parentTicketId: null,
+      project: {
+        OR: [
+          { ownerId: userId },
+          { members: { some: { userId } } },
+        ],
+      },
+      ...(filters?.projectId ? { projectId: filters.projectId } : {}),
+      ...this.buildTicketFilters(filters),
+    }
+
+    const [total, items] = await Promise.all([
+      this.prisma.ticket.count({ where }),
+      this.prisma.ticket.findMany({
+        where,
+        include: ticketInclude,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ])
+
+    const totalPages = Math.max(1, Math.ceil(total / pageSize))
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages,
+    }
   }
 
   async findSubtickets(parentTicketId: string, userId: string) {

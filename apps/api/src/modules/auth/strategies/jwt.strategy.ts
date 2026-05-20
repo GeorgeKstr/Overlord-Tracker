@@ -26,6 +26,27 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
+    const adminEmail = this.config.get<string>('ADMIN_EMAIL')?.toLowerCase()
+    const payloadEmail = payload.email?.toLowerCase()
+
+    // If token email is the configured admin email, resolve by email first.
+    // This prevents stale/mismatched token subjects from dropping admin access.
+    if (adminEmail && payloadEmail === adminEmail) {
+      const adminUser = await this.prisma.user.findUnique({
+        where: { email: payload.email },
+      })
+      if (!adminUser) {
+        throw new UnauthorizedException('User not found')
+      }
+      if (adminUser.role !== 'ADMIN' || adminUser.status !== 'APPROVED') {
+        return this.prisma.user.update({
+          where: { id: adminUser.id },
+          data: { role: 'ADMIN', status: 'APPROVED' },
+        })
+      }
+      return adminUser
+    }
+
     let user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
     })
@@ -34,7 +55,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User not found')
     }
 
-    const adminEmail = this.config.get<string>('ADMIN_EMAIL')?.toLowerCase()
     if (adminEmail && user.email.toLowerCase() === adminEmail && (user.role !== 'ADMIN' || user.status !== 'APPROVED')) {
       user = await this.prisma.user.update({
         where: { id: user.id },

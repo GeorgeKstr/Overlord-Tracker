@@ -13,6 +13,7 @@ import { HealthModule } from './modules/health/health.module'
 import { AnalyticsModule } from './modules/analytics/analytics.module'
 import { AttachmentsModule } from './modules/attachments/attachments.module'
 import { EmailModule } from './modules/email/email.module'
+import { AdminModule } from './modules/admin/admin.module'
 import { AppController } from './app.controller'
 
 @Module({
@@ -32,6 +33,7 @@ import { AppController } from './app.controller'
     HealthModule,
     AnalyticsModule,
     AttachmentsModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

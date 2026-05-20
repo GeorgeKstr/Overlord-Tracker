@@ -50,6 +50,22 @@ class FindTicketsQueryDto {
   @IsOptional()
   @IsString()
   limit?: string
+
+  @IsOptional()
+  @IsString()
+  serviceId?: string
+
+  @IsOptional()
+  @IsString()
+  effort?: string
+
+  @IsOptional()
+  @IsString()
+  page?: string
+
+  @IsOptional()
+  @IsString()
+  pageSize?: string
 }
 
 @ApiTags('tickets')
@@ -71,26 +87,44 @@ export class TicketsController {
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'priority', required: false })
   @ApiQuery({ name: 'assigneeId', required: false })
+  @ApiQuery({ name: 'serviceId', required: false })
+  @ApiQuery({ name: 'effort', required: false })
   @ApiQuery({ name: 'q', required: false, description: 'Search title/description' })
   @ApiQuery({ name: 'limit', required: false, description: 'Max number of results' })
+  @ApiQuery({ name: 'page', required: false, description: '1-based page index' })
+  @ApiQuery({ name: 'pageSize', required: false, description: 'Page size (1-100)' })
   findByProject(@Query() query: FindTicketsQueryDto, @CurrentUser() user: User) {
-    if (!query.projectId) {
-      return this.ticketsService.findAllAccessible(user.id, {
-        status: query.status,
-        priority: query.priority,
-        assigneeId: query.assigneeId,
-        q: query.q,
-        limit: query.limit ? Number(query.limit) : undefined,
-      })
-    }
-
-    return this.ticketsService.findByProject(query.projectId, user.id, {
+    const hasPaging = Boolean(query.page || query.pageSize)
+    const filters = {
       status: query.status,
       priority: query.priority,
       assigneeId: query.assigneeId,
+      serviceId: query.serviceId,
+      effort: query.effort,
       q: query.q,
       limit: query.limit ? Number(query.limit) : undefined,
-    })
+    }
+
+    if (hasPaging) {
+      if (!query.projectId) {
+        return this.ticketsService.findAllAccessiblePaginated(user.id, {
+          ...filters,
+          page: query.page ? Number(query.page) : undefined,
+          pageSize: query.pageSize ? Number(query.pageSize) : undefined,
+        })
+      }
+      return this.ticketsService.findByProjectPaginated(query.projectId, user.id, {
+        ...filters,
+        page: query.page ? Number(query.page) : undefined,
+        pageSize: query.pageSize ? Number(query.pageSize) : undefined,
+      })
+    }
+
+    if (!query.projectId) {
+      return this.ticketsService.findAllAccessible(user.id, filters)
+    }
+
+    return this.ticketsService.findByProject(query.projectId, user.id, filters)
   }
 
   @Get(':id')

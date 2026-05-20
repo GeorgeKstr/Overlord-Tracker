@@ -56,8 +56,8 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-7 p-8">
         {/* Logo & title */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary text-primary-foreground mb-4">
-            <OvLogo className="w-12 h-12" />
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-primary text-primary-foreground mb-4">
+            <OvLogo className="w-16 h-16" />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">Overlord Tracker</h1>
           <p className="text-sm text-muted-foreground">
