@@ -27,4 +27,4 @@ COPY --from=builder /app/packages/database/prisma ./prisma
 
 ENV NODE_ENV=production
 EXPOSE 3001
-CMD ["node", "dist/main"]
+CMD ["sh", "-c", "npx prisma db push --schema=prisma/schema.prisma && node dist/main"]
