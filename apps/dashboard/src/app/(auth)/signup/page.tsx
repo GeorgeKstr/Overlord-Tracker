@@ -27,8 +27,7 @@ export default function SignUpPage() {
     setIsLoading(true)
     setError(null)
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
-    const res = await fetch(`${apiUrl}/api/auth/register`, {
+    const res = await fetch('/api/proxy/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, password }),

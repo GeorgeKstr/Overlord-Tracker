@@ -21,10 +21,11 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
         const apiUrl =
+          process.env.API_URL ??
           process.env.NEXT_PUBLIC_API_URL ??
           (process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : '')
         if (!apiUrl) {
-          throw new Error('NEXT_PUBLIC_API_URL is not configured for production')
+          throw new Error('API_URL is not configured for production')
         }
         const res = await fetch(`${apiUrl}/api/auth/login`, {
           method: 'POST',
