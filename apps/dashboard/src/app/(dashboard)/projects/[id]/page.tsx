@@ -926,49 +926,55 @@ export default function ProjectDetailPage() {
           <Link href="/projects"><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-semibold tracking-tight truncate">{project.name}</h1>
-            {project.websiteUrl && (
-              <a href={project.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors" title={project.websiteUrl}>
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            )}
-            <Badge variant="outline">{project.status}</Badge>
-            <button
-              onClick={openEdit}
-              className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              title="Edit project"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-2xl font-semibold tracking-tight">{project.name}</h1>
+                {project.websiteUrl && (
+                  <a href={project.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors" title={project.websiteUrl}>
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
+                <Badge variant="outline">{project.status}</Badge>
+                <button
+                  onClick={openEdit}
+                  className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  title="Edit project"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <code className="text-xs text-muted-foreground font-mono">{project.key}</code>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {canDeleteProject && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    setDeleteProjectNameInput('')
+                    setDeleteProjectOpen(true)
+                  }}
+                  disabled={deleteProjectMutation.isPending}
+                >
+                  {deleteProjectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  <span className="hidden sm:inline ml-1.5">{deleteProjectMutation.isPending ? 'Deleting...' : 'Delete'}</span>
+                </Button>
+              )}
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/projects/${id}/labels`}>
+                  <Tag className="h-4 w-4" />
+                  <span className="hidden sm:inline ml-1.5">Labels</span>
+                </Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href={`/projects/${id}/tickets`}>
+                  <Ticket className="h-4 w-4" />
+                  <span className="hidden sm:inline ml-1.5">Tickets</span>
+                </Link>
+              </Button>
+            </div>
           </div>
-          <code className="text-xs text-muted-foreground font-mono">{project.key}</code>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {canDeleteProject && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                setDeleteProjectNameInput('')
-                setDeleteProjectOpen(true)
-              }}
-              disabled={deleteProjectMutation.isPending}
-            >
-              {deleteProjectMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
-              {deleteProjectMutation.isPending ? 'Deleting...' : 'Delete'}
-            </Button>
-          )}
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/projects/${id}/labels`}>
-              <Tag className="h-4 w-4 mr-2" />Labels
-            </Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link href={`/projects/${id}/tickets`}>
-              <Ticket className="h-4 w-4 mr-2" />Tickets
-            </Link>
-          </Button>
         </div>
       </div>
 

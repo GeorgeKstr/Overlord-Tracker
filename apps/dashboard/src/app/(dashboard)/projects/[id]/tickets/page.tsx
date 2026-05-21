@@ -295,15 +295,15 @@ export default function TicketsPage() {
           </Button>
         </div>
 
-        <Button asChild variant="outline" size="sm" className="gap-1.5">
+        <Button asChild variant="outline" size="sm" className="gap-1.5 shrink-0">
           <Link href={`/projects/${id}/labels`}>
             <Tag className="h-3.5 w-3.5" />
-            Labels
+            <span className="hidden sm:inline">Labels</span>
           </Link>
         </Button>
-        <Button onClick={() => setOpen(true)} size="sm" className="gap-1.5">
+        <Button onClick={() => setOpen(true)} size="sm" className="gap-1.5 shrink-0">
           <Plus className="h-3.5 w-3.5" />
-          New Ticket
+          <span className="hidden sm:inline">New Ticket</span>
         </Button>
       </div>
 
