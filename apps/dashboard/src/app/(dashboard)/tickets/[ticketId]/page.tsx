@@ -19,6 +19,7 @@ import {
   Paperclip,
   Check,
   Copy,
+  Loader2,
 } from 'lucide-react'
 import { api } from '@/lib/api-client'
 import { buildProjectApiUrl, formatContextApiUrl, getStoredOverlordBaseUrl } from '@/lib/overlord-links'
@@ -208,6 +209,9 @@ export default function TicketDetailPage() {
     return (user.name ?? user.email).slice(0, 2).toUpperCase()
   }
 
+  const isFieldPending = (key: string) =>
+    updateMutation.isPending && key in (updateMutation.variables ?? {})
+
   function startEditDescription() {
     setDescDraft(ticket?.description ?? '')
     setEditingDescription(true)
@@ -323,13 +327,14 @@ export default function TicketDetailPage() {
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-muted-foreground hover:text-destructive flex-shrink-0"
+          disabled={deleteMutation.isPending}
           onClick={() => {
             if (confirm('Delete this ticket? This cannot be undone.')) {
               deleteMutation.mutate()
             }
           }}
         >
-          <Trash2 className="h-4 w-4" />
+          {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
         </Button>
       </div>
 
@@ -408,7 +413,7 @@ export default function TicketDetailPage() {
                   disabled={uploadAttachmentMutation.isPending}
                   onClick={() => attachFileRef.current?.click()}
                 >
-                  <Plus className="h-3 w-3" />
+                  {uploadAttachmentMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
                   {uploadAttachmentMutation.isPending ? 'Uploading…' : 'Upload image'}
                 </Button>
                 <input
@@ -591,9 +596,11 @@ export default function TicketDetailPage() {
             <Select
               value={ticket.status}
               onValueChange={(v) => updateMutation.mutate({ status: v as any })}
+              disabled={updateMutation.isPending}
             >
               <SelectTrigger className="h-8 text-sm">
                 <SelectValue />
+                {isFieldPending('status') && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
               </SelectTrigger>
               <SelectContent position="popper" side="bottom" sideOffset={6} className="z-[120] bg-popover">
                 {Object.entries(TICKET_STATUS_LABELS).map(([value, label]) => (
@@ -617,9 +624,11 @@ export default function TicketDetailPage() {
             <Select
               value={ticket.priority}
               onValueChange={(v) => updateMutation.mutate({ priority: v as any })}
+              disabled={updateMutation.isPending}
             >
               <SelectTrigger className="h-8 text-sm">
                 <SelectValue />
+                {isFieldPending('priority') && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
               </SelectTrigger>
               <SelectContent position="popper" side="bottom" sideOffset={6} className="z-[120] bg-popover">
                 {Object.entries(TICKET_PRIORITY_LABELS).map(([value, label]) => (
@@ -639,9 +648,11 @@ export default function TicketDetailPage() {
               onValueChange={(v) =>
                 updateMutation.mutate({ assigneeId: v === '__none__' ? null : v } as any)
               }
+              disabled={updateMutation.isPending}
             >
               <SelectTrigger className="h-8 text-sm">
                 <SelectValue placeholder="Unassigned" />
+                {isFieldPending('assigneeId') && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
               </SelectTrigger>
               <SelectContent position="popper" side="bottom" sideOffset={6} className="z-[120] bg-popover">
                 <SelectItem value="__none__">
@@ -671,9 +682,11 @@ export default function TicketDetailPage() {
             <Select
               value={ticket.serviceId ?? '__none__'}
               onValueChange={(v) => updateMutation.mutate({ serviceId: v === '__none__' ? null : v } as any)}
+              disabled={updateMutation.isPending}
             >
               <SelectTrigger className="h-8 text-sm">
                 <SelectValue placeholder="No service" />
+                {isFieldPending('serviceId') && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
               </SelectTrigger>
               <SelectContent position="popper" side="bottom" sideOffset={6} className="z-[120] bg-popover">
                 <SelectItem value="__none__">No service</SelectItem>
@@ -690,9 +703,11 @@ export default function TicketDetailPage() {
             <Select
               value={ticket.effort ?? '__none__'}
               onValueChange={(v) => updateMutation.mutate({ effort: v === '__none__' ? null : v } as any)}
+              disabled={updateMutation.isPending}
             >
               <SelectTrigger className="h-8 text-sm">
                 <SelectValue placeholder="Not set" />
+                {isFieldPending('effort') && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
               </SelectTrigger>
               <SelectContent position="popper" side="bottom" sideOffset={6} className="z-[120] bg-popover">
                 <SelectItem value="__none__">Not set</SelectItem>
@@ -724,6 +739,7 @@ export default function TicketDetailPage() {
                 {ticket.tested && <Check className="h-2.5 w-2.5 text-white" />}
               </span>
               Tested &amp; working
+              {isFieldPending('tested') && <Loader2 className="h-3.5 w-3.5 animate-spin ml-auto" />}
             </button>
           </div>
 

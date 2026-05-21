@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { Loader2 } from 'lucide-react'
 
 interface CommentFormProps {
   onSubmit: (content: string) => Promise<void>
@@ -47,6 +48,7 @@ export function CommentForm({
       />
       <div className="flex justify-end">
         <Button type="submit" size="sm" disabled={loading || !content.trim()}>
+          {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
           {loading ? 'Posting…' : 'Comment'}
         </Button>
       </div>
