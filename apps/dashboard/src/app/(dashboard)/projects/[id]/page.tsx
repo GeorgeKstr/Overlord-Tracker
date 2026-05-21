@@ -577,7 +577,7 @@ export default function ProjectDetailPage() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: (data: typeof editForm) => api.patch<Project>(`/projects/${id}`, data),
+    mutationFn: (data: Partial<typeof editForm> & { name: string }) => api.patch<Project>(`/projects/${id}`, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['projects', id] }); setEditOpen(false) },
   })
 
@@ -1747,9 +1747,17 @@ export default function ProjectDetailPage() {
               </div>
             </div>
           </div>
+          {updateMutation.isError && (
+            <p className="text-sm text-destructive">{(updateMutation.error as Error)?.message ?? 'Failed to save changes'}</p>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-            <Button onClick={() => updateMutation.mutate(editForm)}
+            <Button onClick={() => updateMutation.mutate({
+              name: editForm.name,
+              description: editForm.description || undefined,
+              gitRepoUrl: editForm.gitRepoUrl || undefined,
+              websiteUrl: editForm.websiteUrl || undefined,
+            })}
               disabled={!editForm.name || updateMutation.isPending}>
               {updateMutation.isPending ? 'Saving…' : 'Save changes'}
             </Button>
