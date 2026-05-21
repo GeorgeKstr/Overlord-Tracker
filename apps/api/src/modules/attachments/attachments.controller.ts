@@ -41,7 +41,7 @@ export class AttachmentsController {
   constructor(private readonly attachmentsService: AttachmentsService) {}
 
   @Post('tickets/:ticketId/attachments')
-  @ApiOperation({ summary: 'Upload an image attachment to a ticket' })
+  @ApiOperation({ summary: 'Upload a file attachment to a ticket' })
   create(
     @Param('ticketId') ticketId: string,
     @Body() dto: CreateAttachmentDto,

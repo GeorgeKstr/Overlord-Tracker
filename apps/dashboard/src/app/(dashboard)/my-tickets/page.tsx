@@ -13,7 +13,7 @@ import {
   ArrowUpDown,
 } from 'lucide-react'
 import { api, isApiOffline } from '@/lib/api-client'
-import { isTicketChanged, isTicketUnseen } from '@/lib/ticket-activity'
+import { isTicketUnseen } from '@/lib/ticket-activity'
 import {
   TICKET_STATUS_LABELS,
   TICKET_PRIORITY_LABELS,
@@ -89,7 +89,7 @@ export default function MyTicketsPage() {
         pageSize: String(pageSize),
       })
       if (statusFilter !== 'ALL') params.set('status', statusFilter)
-      if (priorityFilter !== 'ALL') params.set('priority', priorityFilter)
+      if (priorityFilter !== 'ALL' && priorityFilter !== 'UNSEEN') params.set('priority', priorityFilter)
       if (projectFilter !== 'ALL') params.set('projectId', projectFilter)
       if (serviceFilter !== 'ALL') params.set('serviceId', serviceFilter)
       if (effortFilter !== 'ALL') params.set('effort', effortFilter)
@@ -130,7 +130,9 @@ export default function MyTicketsPage() {
     ).values(),
   ).sort((a, b) => a.name.localeCompare(b.name))
 
-  const filtered = tickets
+  const filtered = priorityFilter === 'UNSEEN'
+    ? tickets.filter((t) => isTicketUnseen(t.id, session?.user?.id ?? ''))
+    : tickets
 
   const statusCounts = ALL_STATUSES.reduce((acc, s) => {
     acc[s] = tickets.filter((t) => t.status === s).length
@@ -270,6 +272,7 @@ export default function MyTicketsPage() {
               {Object.entries(TICKET_PRIORITY_LABELS).map(([value, label]) => (
                 <SelectItem key={value} value={value}>{label}</SelectItem>
               ))}
+              <SelectItem value="UNSEEN">Newly assigned</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -376,8 +379,33 @@ export default function MyTicketsPage() {
                   <MTSortHeader label="Service" col="service" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                 </div>
                 {group.tickets.map((ticket) => (
-                  <div key={ticket.id} className="px-4 py-3 hover:bg-muted/50 transition-colors">
-                    <div className="md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,3fr)_minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.3fr)] md:items-center md:gap-2 flex items-center gap-3">
+                  <div key={ticket.id} className="hover:bg-muted/50 transition-colors">
+                    {/* ── Mobile card layout ── */}
+                    <Link href={`/tickets/${ticket.id}`} className="block px-4 py-3 md:hidden">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <div className="flex items-center gap-1">
+                          <StatusBadge status={ticket.status} />
+                          {ticket.tested && (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" title="Tested" />
+                          )}
+                        </div>
+                        <PriorityBadge priority={ticket.priority} />
+                      </div>
+                      <p className="text-sm font-medium truncate">
+                        {ticket.title}
+                        {session?.user?.id && isTicketUnseen(ticket.id, session.user.id) && (
+                          <span className="ml-1.5 text-[11px] font-normal text-blue-500/70 not-italic">· assigned</span>
+                        )}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
+                        <span>{formatRelativeTime(ticket.updatedAt)}</span>
+                        {ticket.service && (
+                          <><span>·</span><span className="truncate">{ticket.service.name}</span></>
+                        )}
+                      </div>
+                    </Link>
+                    {/* ── Desktop grid layout ── */}
+                    <div className="hidden md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,3fr)_minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.3fr)] px-4 py-3 items-center gap-2">
                       <Link href={`/tickets/${ticket.id}`} className="contents">
                         <div className="flex items-center gap-1">
                           <StatusBadge status={ticket.status} />
@@ -390,35 +418,34 @@ export default function MyTicketsPage() {
                         </div>
 
                         <div className="min-w-0 flex items-center gap-1.5">
-                          {isTicketChanged(ticket.id) && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" title="Recently changed" />
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium truncate">{ticket.title}</p>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {ticket.title}
+                              {session?.user?.id && isTicketUnseen(ticket.id, session.user.id) && (
+                                <span className="ml-1.5 text-[11px] font-normal text-blue-500/70 not-italic">· assigned</span>
+                              )}
+                            </p>
                             {ticket.description && (
-                              <p className="hidden sm:block text-xs text-muted-foreground line-clamp-1 lg:line-clamp-2">
+                              <p className="text-xs text-muted-foreground line-clamp-1 lg:line-clamp-2">
                                 {ticket.description}
                               </p>
                             )}
                           </div>
-                          {session?.user?.id && isTicketUnseen(ticket.id, session.user.id) && (
-                            <span className="text-[11px] text-muted-foreground shrink-0 font-normal">New</span>
-                          )}
                         </div>
 
-                        <div className="hidden md:block">
+                        <div>
                           <PriorityBadge priority={ticket.priority} />
                         </div>
 
-                        <span className="hidden md:block text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                           {ticket.effort ? (TICKET_EFFORT_LABELS[ticket.effort] ?? ticket.effort) : '—'}
                         </span>
 
-                        <span className="hidden md:block text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                           {formatRelativeTime(ticket.updatedAt)}
                         </span>
 
-                        <span className="hidden md:block text-xs text-muted-foreground truncate">
+                        <span className="text-xs text-muted-foreground truncate">
                           {ticket.service?.name ?? 'No service'}
                         </span>
                       </Link>

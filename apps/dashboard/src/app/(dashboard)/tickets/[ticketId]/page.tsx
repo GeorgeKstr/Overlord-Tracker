@@ -20,9 +20,10 @@ import {
   Check,
   Copy,
   Loader2,
+  FileText,
 } from 'lucide-react'
 import { api, isApiOffline } from '@/lib/api-client'
-import { markTicketChanged, clearTicketChanged, markTicketUnseen, clearTicketUnseen } from '@/lib/ticket-activity'
+import { markTicketUnseen, clearTicketUnseen } from '@/lib/ticket-activity'
 import { buildProjectApiUrl, formatContextApiUrl, getStoredOverlordBaseUrl } from '@/lib/overlord-links'
 import {
   TICKET_STATUS_LABELS,
@@ -76,6 +77,7 @@ export default function TicketDetailPage() {
   const [addingLabel, setAddingLabel] = useState(false)
   const [overlordBaseUrl, setOverlordBaseUrl] = useState('')
   const [copiedApi, setCopiedApi] = useState(false)
+  const [uploadSizeError, setUploadSizeError] = useState<string | null>(null)
   const attachFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -124,11 +126,10 @@ export default function TicketDetailPage() {
   })
 
   // ── Activity tracking ──────────────────────────────────────────────────────
-  // Clear recently-changed dot and unseen badge when the ticket is opened.
+  // Clear unseen badge when the assignee opens the ticket.
   useEffect(() => {
-    if (!ticket) return
-    clearTicketChanged(ticketId)
-    if (ticket.assigneeId && session?.user?.id === ticket.assigneeId) {
+    if (!ticket || !session?.user?.id) return
+    if (ticket.assigneeId && session.user.id === ticket.assigneeId) {
       clearTicketUnseen(ticketId)
     }
   }, [ticket, ticketId, session?.user?.id])
@@ -142,7 +143,6 @@ export default function TicketDetailPage() {
 
   function invalidateAndMark() {
     invalidate()
-    markTicketChanged(ticketId)
   }
 
   const updateMutation = useMutation({
@@ -380,7 +380,7 @@ export default function TicketDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* ── Main column ─────────────────────────────────────────────────── */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="order-1 lg:col-span-2 space-y-6">
           {/* Description */}
           <Card>
             <CardHeader className="pb-2">
@@ -454,16 +454,24 @@ export default function TicketDetailPage() {
                   onClick={() => attachFileRef.current?.click()}
                 >
                   {uploadAttachmentMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-                  {uploadAttachmentMutation.isPending ? 'Uploading…' : 'Upload image'}
+                  {uploadAttachmentMutation.isPending ? 'Uploading…' : 'Upload file'}
                 </Button>
                 <input
                   ref={attachFileRef}
                   type="file"
-                  accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt,.csv"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0]
-                    if (file) uploadAttachmentMutation.mutate(file)
+                    if (file) {
+                      if (file.size > 10 * 1024 * 1024) {
+                        setUploadSizeError('File exceeds the 10 MB limit.')
+                        e.target.value = ''
+                        return
+                      }
+                      setUploadSizeError(null)
+                      uploadAttachmentMutation.mutate(file)
+                    }
                     e.target.value = ''
                   }}
                 />
@@ -476,11 +484,20 @@ export default function TicketDetailPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {ticket.attachments!.map((a) => (
                     <div key={a.id} className="group relative rounded-md overflow-hidden border bg-muted aspect-video">
-                      <img
-                        src={`data:${a.mimeType};base64,${a.data}`}
-                        alt={a.filename}
-                        className="w-full h-full object-cover"
-                      />
+                      {a.mimeType.startsWith('image/') ? (
+                        <img
+                          src={`data:${a.mimeType};base64,${a.data}`}
+                          alt={a.filename}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-1 p-2">
+                          <FileText className="h-8 w-8 text-muted-foreground shrink-0" />
+                          <p className="text-[11px] text-muted-foreground text-center truncate w-full px-1">
+                            {a.filename}
+                          </p>
+                        </div>
+                      )}
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                         <a
                           href={`data:${a.mimeType};base64,${a.data}`}
@@ -509,6 +526,9 @@ export default function TicketDetailPage() {
                     </div>
                   ))}
                 </div>
+              )}
+              {uploadSizeError && (
+                <p className="mt-2 text-xs text-destructive">{uploadSizeError}</p>
               )}
               {uploadAttachmentMutation.isError && (
                 <p className="mt-2 text-xs text-destructive">
@@ -565,29 +585,10 @@ export default function TicketDetailPage() {
             </Card>
           )}
 
-          {/* Comments */}
-          <div>
-            <h2 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5 mb-3">
-              <MessageSquare className="h-3.5 w-3.5" />
-              Comments
-              <Badge variant="secondary" className="text-xs ml-1">
-                {ticket.comments?.length ?? 0}
-              </Badge>
-            </h2>
-            <CommentList
-              comments={ticket.comments ?? []}
-              currentUserId={session?.user?.id}
-              onDelete={(id) => deleteCommentMutation.mutate(id)}
-            />
-            <Separator className="my-4" />
-            <CommentForm
-              onSubmit={async (content) => { await addCommentMutation.mutateAsync(content) }}
-            />
-          </div>
         </div>
 
-        {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-        <div className="space-y-4">
+        {/* ── Sidebar — spans both rows on desktop so comments sit beside it ── */}
+        <div className="order-2 space-y-4 lg:col-start-3 lg:row-start-1 lg:row-span-2">
           {/* Metadata */}
           <div className="space-y-2 text-xs text-muted-foreground">
             <div className="flex justify-between">
@@ -832,6 +833,26 @@ export default function TicketDetailPage() {
             </div>
           </div>
 
+        </div>
+
+        {/* ── Comments — col 1-2 row 2 on desktop; below sidebar on mobile ── */}
+        <div className="order-3 lg:col-span-2 lg:col-start-1 lg:row-start-2">
+          <h2 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5 mb-3">
+            <MessageSquare className="h-3.5 w-3.5" />
+            Comments
+            <Badge variant="secondary" className="text-xs ml-1">
+              {ticket.comments?.length ?? 0}
+            </Badge>
+          </h2>
+          <CommentList
+            comments={ticket.comments ?? []}
+            currentUserId={session?.user?.id}
+            onDelete={(id) => deleteCommentMutation.mutate(id)}
+          />
+          <Separator className="my-4" />
+          <CommentForm
+            onSubmit={async (content) => { await addCommentMutation.mutateAsync(content) }}
+          />
         </div>
       </div>
     </div>

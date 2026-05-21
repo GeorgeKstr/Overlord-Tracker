@@ -22,7 +22,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { api } from '@/lib/api-client'
-import { isTicketChanged, isTicketUnseen } from '@/lib/ticket-activity'
+import { isTicketUnseen } from '@/lib/ticket-activity'
 import {
   TICKET_STATUS_LABELS,
   TICKET_PRIORITY_LABELS,
@@ -130,7 +130,7 @@ export default function TicketsPage() {
         pageSize: String(pageSize),
       })
       if (statusFilter !== 'ALL') params.set('status', statusFilter)
-      if (priorityFilter !== 'ALL') params.set('priority', priorityFilter)
+      if (priorityFilter !== 'ALL' && priorityFilter !== 'UNSEEN') params.set('priority', priorityFilter)
       if (serviceFilter !== 'ALL') params.set('serviceId', serviceFilter)
       if (effortFilter !== 'ALL') params.set('effort', effortFilter)
       if (assignedToMe && session?.user?.id) params.set('assigneeId', session.user.id)
@@ -203,7 +203,18 @@ export default function TicketsPage() {
     if (page > totalPages) setPage(totalPages)
   }, [ticketsPage, page, totalPages])
 
-  const filteredTickets = ticketItems
+  // forceActivityUpdate triggers re-filter when localStorage activity changes while UNSEEN is active.
+  const [, forceActivityUpdate] = useState(0)
+  useEffect(() => {
+    if (priorityFilter !== 'UNSEEN') return
+    const handler = () => forceActivityUpdate((n) => n + 1)
+    window.addEventListener('ticket-activity-changed', handler)
+    return () => window.removeEventListener('ticket-activity-changed', handler)
+  }, [priorityFilter])
+
+  const filteredTickets = priorityFilter === 'UNSEEN'
+    ? ticketItems.filter((t) => isTicketUnseen(t.id, session?.user?.id ?? ''))
+    : ticketItems
 
   const hasLabels = ticketItems.some((t) => t.labels && t.labels.length > 0)
   const colsCls = hasLabels ? LIST_COLS_WITH_LABELS : LIST_COLS_NO_LABELS
@@ -381,6 +392,7 @@ export default function TicketsPage() {
               {Object.entries(TICKET_PRIORITY_LABELS).map(([value, label]) => (
                 <SelectItem key={value} value={value}>{label}</SelectItem>
               ))}
+              <SelectItem value="UNSEEN">Newly assigned</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -835,12 +847,36 @@ function TicketRow({
     return () => window.removeEventListener('ticket-activity-changed', handler)
   }, [])
 
-  const changed = isTicketChanged(ticket.id)
   const unseen = !!currentUserId && isTicketUnseen(ticket.id, currentUserId)
 
   return (
-    <div className="px-4 py-3 hover:bg-muted/50 transition-colors">
-      <div className={cn('md:grid md:items-center md:gap-2 flex items-center gap-3', colsCls)}>
+    <div className="hover:bg-muted/50 transition-colors">
+      {/* ── Mobile card layout ── */}
+      <Link href={`/tickets/${ticket.id}`} className="block px-4 py-3 md:hidden">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <div className="flex items-center gap-1">
+            <StatusBadge status={ticket.status} />
+            {ticket.tested && (
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" title="Tested" />
+            )}
+          </div>
+          <PriorityBadge priority={ticket.priority} />
+        </div>
+        <p className="text-sm font-medium truncate">
+          {ticket.title}
+          {unseen && (
+            <span className="ml-1.5 text-[11px] font-normal text-blue-500/70 not-italic">· assigned</span>
+          )}
+        </p>
+        <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
+          <span>{formatRelativeTime(ticket.createdAt)}</span>
+          {ticket.service && (
+            <><span>·</span><span className="truncate">{ticket.service.name}</span></>
+          )}
+        </div>
+      </Link>
+      {/* ── Desktop grid layout ── */}
+      <div className={cn('hidden md:grid px-4 py-3 items-center gap-2', colsCls)}>
         <Link href={`/tickets/${ticket.id}`} className="contents">
           <div className="flex items-center gap-1">
             <StatusBadge status={ticket.status} />
@@ -851,43 +887,42 @@ function TicketRow({
               </span>
             )}
           </div>
-          <div className="min-w-0 flex items-center gap-1.5">
-            {changed && (
-              <span className="h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" title="Recently changed" />
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium truncate">{ticket.title}</p>
+          <div className="min-w-0 flex-1 flex items-center gap-1.5">
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">
+                {ticket.title}
+                {unseen && (
+                  <span className="ml-1.5 text-[11px] font-normal text-blue-500/70 not-italic">· assigned</span>
+                )}
+              </p>
               {ticket.description && (
-                <p className="hidden sm:block text-xs text-muted-foreground line-clamp-1 lg:line-clamp-2">
+                <p className="text-xs text-muted-foreground line-clamp-1 lg:line-clamp-2">
                   {ticket.description}
                 </p>
               )}
             </div>
-            {unseen && (
-              <span className="text-[11px] text-muted-foreground shrink-0 font-normal">New</span>
-            )}
           </div>
           {showLabels && (
-            <div className="hidden md:flex items-center gap-1 min-w-0 overflow-hidden">
+            <div className="flex items-center gap-1 min-w-0 overflow-hidden">
               {ticket.labels && ticket.labels.length > 0 ? ticket.labels.slice(0, 3).map(({ label }) => (
                 <LabelBadge key={label.id} label={label} />
               )) : <span className="text-xs text-muted-foreground">None</span>}
             </div>
           )}
-          <div className="hidden md:block">
+          <div>
             <PriorityBadge priority={ticket.priority} />
           </div>
-          <span className="hidden md:block text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {ticket.effort ? (TICKET_EFFORT_LABELS[ticket.effort] ?? ticket.effort) : '—'}
           </span>
-          <span className="hidden md:block text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {formatRelativeTime(ticket.createdAt)}
           </span>
-          <span className="hidden md:block text-xs text-muted-foreground truncate">
+          <span className="text-xs text-muted-foreground truncate">
             {ticket.service?.name ?? 'No service'}
           </span>
         </Link>
-        <div className="ml-auto md:ml-0 md:justify-self-end">
+        <div className="justify-self-end">
           <AssigneePopover current={ticket.assignee ?? null} options={assigneeOptions} onAssign={onAssign} />
         </div>
       </div>

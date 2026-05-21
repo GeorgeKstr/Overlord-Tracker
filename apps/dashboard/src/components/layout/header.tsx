@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { signOut } from 'next-auth/react'
 import Link from 'next/link'
-import { KeyRound, LogOut, Moon, Sun } from 'lucide-react'
+import { KeyRound, LogOut, Moon, Sun, Menu } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useSidebar } from './sidebar-context'
 
 interface HeaderProps {
   user: {
@@ -24,6 +25,7 @@ interface HeaderProps {
 
 export function Header({ user }: HeaderProps) {
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const { setMobileOpen } = useSidebar()
 
   useEffect(() => {
     const stored = localStorage.getItem('theme')
@@ -47,7 +49,15 @@ export function Header({ user }: HeaderProps) {
     .slice(0, 2)
 
   return (
-    <header className="h-16 border-b flex items-center justify-between px-6 bg-card flex-shrink-0">
+    <header className="h-16 border-b flex items-center justify-between px-4 sm:px-6 bg-card flex-shrink-0">
+      <button
+        type="button"
+        onClick={() => setMobileOpen(true)}
+        className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        title="Open menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
       <div className="flex-1" />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

@@ -7,13 +7,27 @@ import {
 import { PrismaService } from '../../prisma/prisma.service'
 
 const ALLOWED_MIME_TYPES = [
+  // Images
   'image/png',
   'image/jpeg',
   'image/gif',
   'image/webp',
   'image/svg+xml',
+  // Documents
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  // Archives
+  'application/zip',
+  'application/x-zip-compressed',
+  // Text
+  'text/plain',
+  'text/csv',
+  'application/csv',
 ]
-const MAX_SIZE_BYTES = 5 * 1024 * 1024 // 5 MB
+const MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
 
 const uploadedBySelect = { id: true, name: true, email: true, image: true }
 
@@ -57,7 +71,7 @@ export class AttachmentsService {
     // Estimate decoded byte size
     const size = Math.floor((data.length * 3) / 4)
     if (size > MAX_SIZE_BYTES) {
-      throw new BadRequestException('File exceeds 5 MB limit')
+      throw new BadRequestException('File exceeds 10 MB limit')
     }
 
     return this.prisma.attachment.create({
