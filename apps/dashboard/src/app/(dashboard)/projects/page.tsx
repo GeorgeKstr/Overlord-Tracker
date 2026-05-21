@@ -217,24 +217,33 @@ export default function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {totalProjects} project{totalProjects !== 1 ? 's' : ''}
-          </p>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {totalProjects} project{totalProjects !== 1 ? 's' : ''}
+            </p>
+          </div>
+          {canCreateProject && (
+            <Button onClick={() => setOpen(true)} className="gap-2 shrink-0">
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">New Project</span>
+              <span className="sm:hidden">New</span>
+            </Button>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          <div className="relative">
+          <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
               placeholder="Search projects…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 h-9 w-48 md:w-56"
+              className="pl-8 h-9 w-full"
             />
           </div>
-          <div className="flex items-center rounded-md border p-0.5 gap-0.5">
+          <div className="flex items-center rounded-md border p-0.5 gap-0.5 shrink-0">
             <Button
               variant={view === 'cards' ? 'secondary' : 'ghost'}
               size="icon"
@@ -254,12 +263,6 @@ export default function ProjectsPage() {
               <LayoutList className="h-4 w-4" />
             </Button>
           </div>
-          {canCreateProject && (
-            <Button onClick={() => setOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              New Project
-            </Button>
-          )}
         </div>
       </div>
 
@@ -484,7 +487,7 @@ export default function ProjectsPage() {
             return (
             <div
               key={project.id}
-              className="px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer"
+              className="hover:bg-muted/50 transition-colors cursor-pointer"
               role="link"
               tabIndex={0}
               onClick={() => router.push(`/projects/${project.id}`)}
@@ -495,7 +498,44 @@ export default function ProjectsPage() {
                 }
               }}
             >
-              <div className="md:grid md:grid-cols-[minmax(0,1.2fr)_96px_80px_80px_180px_120px_200px] md:items-center md:gap-3 flex items-center gap-3">
+              {/* ── Mobile card layout ── */}
+              <div className="md:hidden px-4 py-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{project.name}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{project.key}</p>
+                  </div>
+                  <Badge variant={STATUS_VARIANT[project.status] ?? 'outline'} className="shrink-0">{project.status}</Badge>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                  <span>{project._count?.tickets ?? 0} tickets</span>
+                  <span>·</span>
+                  <span>{project._count?.services ?? 0} services</span>
+                  <span>·</span>
+                  <span>{formatDate(project.createdAt)}</span>
+                </div>
+                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                  <Button asChild size="sm" variant="outline" className="flex-1">
+                    <Link href={`/projects/${project.id}`}>Open</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="ghost" className="flex-1">
+                    <Link href={`/projects/${project.id}/tickets`}>Tickets</Link>
+                  </Button>
+                  {canDeleteProject(project) && (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => requestDeleteProject(project)}
+                      disabled={deleteProjectMutation.isPending}
+                      title="Delete project"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {/* ── Desktop grid layout ── */}
+              <div className="hidden md:grid md:grid-cols-[minmax(0,1.2fr)_96px_80px_80px_180px_120px_200px] px-4 py-3 items-center gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{project.name}</p>
                   <p className="text-xs text-muted-foreground truncate">{project.key}</p>
@@ -503,7 +543,7 @@ export default function ProjectsPage() {
                 <Badge variant={STATUS_VARIANT[project.status] ?? 'outline'} className="w-fit">{project.status}</Badge>
                 <span className="text-xs text-muted-foreground">{project._count?.tickets ?? 0}</span>
                 <span className="text-xs text-muted-foreground">{project._count?.services ?? 0}</span>
-                <div className="hidden md:block min-w-0">
+                <div className="min-w-0">
                   <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
                     <span>{progress.done}/{progress.total} ({progress.testedDone} tested)</span>
                     <span>{progress.pct}%</span>
@@ -522,7 +562,7 @@ export default function ProjectsPage() {
                   </div>
                 </div>
                 <span className="text-xs text-muted-foreground">{formatDate(project.createdAt)}</span>
-                <div className="ml-auto md:ml-0 md:justify-self-end flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                <div className="justify-self-end flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                   <Button asChild size="sm" variant="outline">
                     <Link href={`/projects/${project.id}`}>Open</Link>
                   </Button>
