@@ -1017,12 +1017,17 @@ export default function ProjectDetailPage() {
               </div>
               <div className="h-2 rounded-full bg-muted overflow-hidden">
                 <div className="h-full flex">
-                  <div className="h-full bg-sky-400 transition-all" style={{ width: `${donePct}%` }} />
                   <div className="h-full bg-emerald-500 transition-all" style={{ width: `${testedPct}%` }} />
+                  <div className="h-full bg-sky-400 transition-all" style={{ width: `${donePct}%` }} />
                   <div className="h-full bg-amber-500 transition-all" style={{ width: `${inReviewPct}%` }} />
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">{progressPct}% complete ({doneTickets} done, {testedDoneTickets} tested{inReviewTickets > 0 ? `, ${inReviewTickets} in review` : ''})</p>
+              <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-emerald-500" /> Tested</span>
+                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-sky-400" /> Done</span>
+                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-amber-500" /> In review</span>
+              </div>
             </CardContent>
           </Card>
         </Link>

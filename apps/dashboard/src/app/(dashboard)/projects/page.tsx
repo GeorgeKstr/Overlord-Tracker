@@ -395,10 +395,15 @@ export default function ProjectsPage() {
                   </div>
                   <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                     <div className="h-full flex">
-                      <div className="h-full bg-sky-400" style={{ width: `${progress.donePct}%` }} />
                       <div className="h-full bg-emerald-500" style={{ width: `${progress.testedPct}%` }} />
+                      <div className="h-full bg-sky-400" style={{ width: `${progress.donePct}%` }} />
                       <div className="h-full bg-amber-500" style={{ width: `${progress.inReviewPct}%` }} />
                     </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                    <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-emerald-500" /> Tested</span>
+                    <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-sky-400" /> Done</span>
+                    <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-amber-500" /> In review</span>
                   </div>
                 </div>
                 {(project.gitRepoUrl || project.websiteUrl) && (
@@ -500,10 +505,15 @@ export default function ProjectsPage() {
                   </div>
                   <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                     <div className="h-full flex">
-                      <div className="h-full bg-sky-400" style={{ width: `${progress.donePct}%` }} />
                       <div className="h-full bg-emerald-500" style={{ width: `${progress.testedPct}%` }} />
+                      <div className="h-full bg-sky-400" style={{ width: `${progress.donePct}%` }} />
                       <div className="h-full bg-amber-500" style={{ width: `${progress.inReviewPct}%` }} />
                     </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                    <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-emerald-500" /> Tested</span>
+                    <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-sky-400" /> Done</span>
+                    <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-amber-500" /> In review</span>
                   </div>
                 </div>
                 <span className="text-xs text-muted-foreground">{formatDate(project.createdAt)}</span>
