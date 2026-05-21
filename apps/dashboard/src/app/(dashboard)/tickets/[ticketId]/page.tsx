@@ -126,6 +126,7 @@ export default function TicketDetailPage() {
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ['tickets'] })
     queryClient.invalidateQueries({ queryKey: ['projects', ticket?.projectId] })
+    queryClient.invalidateQueries({ queryKey: ['my-tickets-count'] })
   }
 
   const updateMutation = useMutation({
