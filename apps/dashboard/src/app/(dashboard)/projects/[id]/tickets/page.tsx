@@ -857,7 +857,7 @@ function TicketRow({
           <div className="flex items-center gap-1">
             <StatusBadge status={ticket.status} />
             {ticket.tested && (
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" title="Tested" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
             )}
           </div>
           <PriorityBadge priority={ticket.priority} />
