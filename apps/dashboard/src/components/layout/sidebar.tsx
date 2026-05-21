@@ -42,7 +42,8 @@ export function Sidebar() {
     queryKey: ['my-tickets-count', me?.id],
     queryFn: () => api.get<{ total: number }>(`/tickets?assigneeId=${me!.id}&pageSize=1`),
     enabled: !!me?.id,
-    staleTime: 60_000,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
   })
   const myTicketTotal = myTicketsData?.total ?? 0
 
@@ -120,7 +121,14 @@ export function Sidebar() {
                   : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
               )}
             >
-              <Icon className="h-4 w-4 flex-shrink-0" />
+              <span className="relative flex-shrink-0">
+                <Icon className="h-4 w-4" />
+                {collapsed && badge !== null && (
+                  <span className="absolute -top-1.5 -right-1.5 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-bold text-primary-foreground leading-none">
+                    {badge > 99 ? '99+' : badge}
+                  </span>
+                )}
+              </span>
               {!collapsed && label}
               {!collapsed && badge !== null && (
                 <span className="ml-auto flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary/15 px-1 text-[11px] font-semibold text-primary">

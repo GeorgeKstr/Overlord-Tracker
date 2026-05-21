@@ -369,31 +369,6 @@ export default function TicketsPage() {
           </span>
         </button>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Tested:</span>
-          <Select value={testedFilter} onValueChange={(v) => { setTestedFilter(v); setPage(1) }}>
-            <SelectTrigger className="h-8 w-[130px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All</SelectItem>
-              <SelectItem value="TESTED">Tested</SelectItem>
-              <SelectItem value="UNTESTED">Untested</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <button
-          type="button"
-          onClick={() => setIncludeSubtickets((v) => !v)}
-          className={cn(
-            'inline-flex items-center gap-1.5 h-8 rounded-md border px-3 text-sm font-medium transition-colors shrink-0',
-            includeSubtickets
-              ? 'bg-primary text-primary-foreground border-primary'
-              : 'border-input bg-background text-muted-foreground hover:bg-muted',
-          )}
-        >
-          Subtickets
-        </button>
-        <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Priority:</span>
           <Select value={priorityFilter} onValueChange={setPriorityFilter}>
             <SelectTrigger className="h-8 w-[140px]">
@@ -437,6 +412,31 @@ export default function TicketsPage() {
             </SelectContent>
           </Select>
         </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Tested:</span>
+          <Select value={testedFilter} onValueChange={(v) => { setTestedFilter(v); setPage(1) }}>
+            <SelectTrigger className="h-8 w-[130px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All</SelectItem>
+              <SelectItem value="TESTED">Tested</SelectItem>
+              <SelectItem value="UNTESTED">Untested</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIncludeSubtickets((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-1.5 h-8 rounded-md border px-3 text-sm font-medium transition-colors shrink-0',
+            includeSubtickets
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'border-input bg-background text-muted-foreground hover:bg-muted',
+          )}
+        >
+          Subtickets
+        </button>
       </div>
 
       {/* ── GRID VIEW ── */}
