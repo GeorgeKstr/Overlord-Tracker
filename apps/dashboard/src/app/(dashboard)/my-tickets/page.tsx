@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import {
   Search,
   X,
+  CheckCircle2,
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
