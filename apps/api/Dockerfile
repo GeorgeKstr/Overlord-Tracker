@@ -14,7 +14,7 @@ RUN pnpm install --frozen-lockfile --shamefully-hoist
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN pnpm db:generate
+RUN DATABASE_URL="postgresql://localhost/build" pnpm db:generate
 RUN pnpm --filter @platform/api build
 
 FROM node:20-alpine AS runner

@@ -14,7 +14,7 @@ RUN pnpm install --frozen-lockfile --shamefully-hoist
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN pnpm db:generate
+RUN DATABASE_URL="postgresql://localhost/build" pnpm db:generate
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm --filter @platform/dashboard build
 
