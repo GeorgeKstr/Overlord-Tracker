@@ -16,6 +16,9 @@ import {
   Search,
   CheckCircle2,
   UserCheck,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from 'lucide-react'
 import { api } from '@/lib/api-client'
 import {
@@ -59,6 +62,12 @@ import { StatusBadge, StatusIcon, PriorityBadge, PriorityIcon } from '@/componen
 const ALL_STATUSES = ['OPEN', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED'] as const
 type ViewMode = 'grid' | 'list'
 
+const LIST_COLS_WITH_LABELS = 'md:grid-cols-[minmax(0,1.6fr)_minmax(0,3fr)_minmax(0,2fr)_minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,2fr)]'
+const LIST_COLS_NO_LABELS  = 'md:grid-cols-[minmax(0,1.6fr)_minmax(0,3fr)_minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,2fr)]'
+const PRIORITY_SORT: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 }
+const EFFORT_SORT: Record<string, number>   = { EPIC: 0, NORMAL: 1, MINOR: 2 }
+const STATUS_SORT: Record<string, number>   = { OPEN: 0, IN_PROGRESS: 1, IN_REVIEW: 2, DONE: 3, CANCELLED: 4 }
+
 type PaginatedResponse<T> = {
   items: T[]
   total: number
@@ -84,6 +93,8 @@ export default function TicketsPage() {
   const [assignedToMe, setAssignedToMe] = useState(false)
   const [testedFilter, setTestedFilter] = useState<string>('ALL')
   const [includeSubtickets, setIncludeSubtickets] = useState(false)
+  const [sortBy, setSortBy] = useState('createdAt')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState<number>(() => {
@@ -191,6 +202,31 @@ export default function TicketsPage() {
   }, [ticketsPage, page, totalPages])
 
   const filteredTickets = ticketItems
+
+  const hasLabels = ticketItems.some((t) => t.labels && t.labels.length > 0)
+  const colsCls = hasLabels ? LIST_COLS_WITH_LABELS : LIST_COLS_NO_LABELS
+
+  const handleSort = (col: string) => {
+    if (sortBy === col) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortBy(col); setSortDir('asc') }
+  }
+
+  const sortedTickets = (() => {
+    const d = sortDir === 'asc' ? 1 : -1
+    return [...filteredTickets].sort((a, b) => {
+      let cmp = 0
+      switch (sortBy) {
+        case 'status':   cmp = (STATUS_SORT[a.status] ?? 99) - (STATUS_SORT[b.status] ?? 99); break
+        case 'title':    cmp = a.title.localeCompare(b.title); break
+        case 'priority': cmp = (PRIORITY_SORT[a.priority] ?? 99) - (PRIORITY_SORT[b.priority] ?? 99); break
+        case 'effort':   cmp = (EFFORT_SORT[a.effort ?? ''] ?? 99) - (EFFORT_SORT[b.effort ?? ''] ?? 99); break
+        case 'createdAt': cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(); break
+        case 'service':  cmp = (a.service?.name ?? '').localeCompare(b.service?.name ?? ''); break
+        case 'labels':   cmp = (a.labels?.length ?? 0) - (b.labels?.length ?? 0); break
+      }
+      return cmp * d
+    })
+  })()
 
   const statusCounts = ALL_STATUSES.reduce((acc, s) => {
     acc[s] = ticketItems.filter((t) => t.status === s).length
@@ -437,21 +473,23 @@ export default function TicketsPage() {
           <EmptyState onNew={() => setOpen(true)} />
         ) : (
           <div className="rounded-lg border divide-y overflow-hidden">
-            <div className="hidden md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,3fr)_minmax(0,2fr)_minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,2fr)] items-center gap-2 px-4 py-2 text-xs font-medium text-muted-foreground bg-muted/40">
-              <span>Status</span>
-              <span>Title</span>
-              <span>Labels</span>
-              <span>Priority</span>
-              <span>Effort</span>
-              <span>Created</span>
-              <span>Service</span>
+            <div className={cn('hidden md:grid items-center gap-2 px-4 py-2 text-xs font-medium text-muted-foreground bg-muted/40', colsCls)}>
+              <SortHeader label="Status" col="status" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+              <SortHeader label="Title" col="title" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+              {hasLabels && <SortHeader label="Labels" col="labels" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />}
+              <SortHeader label="Priority" col="priority" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+              <SortHeader label="Effort" col="effort" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+              <SortHeader label="Created" col="createdAt" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+              <SortHeader label="Service" col="service" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
               <span className="text-right">Assignee</span>
             </div>
-            {filteredTickets.map((ticket) => (
+            {sortedTickets.map((ticket) => (
               <TicketRow
                 key={ticket.id}
                 ticket={ticket}
                 assigneeOptions={assigneeOptions}
+                showLabels={hasLabels}
+                colsCls={colsCls}
                 onAssign={(assigneeId) => updateMutation.mutate({ ticketId: ticket.id, patch: { assigneeId: assigneeId || null } })}
               />
             ))}
@@ -752,18 +790,40 @@ function TicketCard({
   )
 }
 
+function SortHeader({ label, col, sortBy, sortDir, onSort }: {
+  label: string; col: string; sortBy: string; sortDir: 'asc' | 'desc'; onSort: (c: string) => void
+}) {
+  const active = sortBy === col
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(col)}
+      className={cn('flex items-center gap-1 transition-colors hover:text-foreground', active && 'text-foreground')}
+    >
+      {label}
+      {active
+        ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)
+        : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+    </button>
+  )
+}
+
 function TicketRow({
   ticket,
   assigneeOptions,
+  showLabels,
+  colsCls,
   onAssign,
 }: {
   ticket: Ticket
   assigneeOptions: UserSummary[]
+  showLabels: boolean
+  colsCls: string
   onAssign: (id: string) => void
 }) {
   return (
     <div className="px-4 py-3 hover:bg-muted/50 transition-colors">
-      <div className="md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,3fr)_minmax(0,2fr)_minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,2fr)] md:items-center md:gap-2 flex items-center gap-3">
+      <div className={cn('md:grid md:items-center md:gap-2 flex items-center gap-3', colsCls)}>
         <Link href={`/tickets/${ticket.id}`} className="contents">
           <div className="flex items-center gap-1">
             <StatusBadge status={ticket.status} />
@@ -782,11 +842,13 @@ function TicketRow({
               </p>
             )}
           </div>
-          <div className="hidden md:flex items-center gap-1 min-w-0 overflow-hidden">
-            {ticket.labels && ticket.labels.length > 0 ? ticket.labels.slice(0, 3).map(({ label }) => (
-              <LabelBadge key={label.id} label={label} />
-            )) : <span className="text-xs text-muted-foreground">None</span>}
-          </div>
+          {showLabels && (
+            <div className="hidden md:flex items-center gap-1 min-w-0 overflow-hidden">
+              {ticket.labels && ticket.labels.length > 0 ? ticket.labels.slice(0, 3).map(({ label }) => (
+                <LabelBadge key={label.id} label={label} />
+              )) : <span className="text-xs text-muted-foreground">None</span>}
+            </div>
+          )}
           <div className="hidden md:block">
             <PriorityBadge priority={ticket.priority} />
           </div>

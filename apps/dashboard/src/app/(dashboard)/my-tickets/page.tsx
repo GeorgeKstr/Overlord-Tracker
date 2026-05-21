@@ -7,6 +7,9 @@ import { useEffect, useState } from 'react'
 import {
   Search,
   X,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from 'lucide-react'
 import { api } from '@/lib/api-client'
 import {
@@ -48,6 +51,8 @@ export default function MyTicketsPage() {
   const [effortFilter, setEffortFilter] = useState('ALL')
   const [testedFilter, setTestedFilter] = useState('ALL')
   const [includeSubtickets, setIncludeSubtickets] = useState(false)
+  const [sortBy, setSortBy] = useState('updatedAt')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState<number>(() => {
@@ -121,9 +126,26 @@ export default function MyTicketsPage() {
     return acc
   }, {} as Record<string, number>)
 
-  const sortedFiltered = [...filtered].sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-  )
+  const handleSort = (col: string) => {
+    if (sortBy === col) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortBy(col); setSortDir('asc') }
+  }
+
+  const sortedFiltered = (() => {
+    const d = sortDir === 'asc' ? 1 : -1
+    return [...filtered].sort((a, b) => {
+      let cmp = 0
+      switch (sortBy) {
+        case 'status':    cmp = (MT_STATUS_SORT[a.status] ?? 99) - (MT_STATUS_SORT[b.status] ?? 99); break
+        case 'title':     cmp = a.title.localeCompare(b.title); break
+        case 'priority':  cmp = (MT_PRIORITY_SORT[a.priority] ?? 99) - (MT_PRIORITY_SORT[b.priority] ?? 99); break
+        case 'effort':    cmp = (MT_EFFORT_SORT[a.effort ?? ''] ?? 99) - (MT_EFFORT_SORT[b.effort ?? ''] ?? 99); break
+        case 'updatedAt': cmp = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(); break
+        case 'service':   cmp = (a.service?.name ?? '').localeCompare(b.service?.name ?? ''); break
+      }
+      return cmp * d
+    })
+  })()
 
   const groupedTickets = sortedFiltered.reduce<Record<string, { id: string; name: string; key: string; tickets: Ticket[] }>>(
     (acc, ticket) => {
@@ -331,12 +353,12 @@ export default function MyTicketsPage() {
 
               <div className="rounded-lg border divide-y overflow-hidden">
                 <div className="hidden md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,3fr)_minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.3fr)] items-center gap-2 px-4 py-2 text-xs font-medium text-muted-foreground bg-muted/40">
-                  <span>Status</span>
-                  <span>Title</span>
-                  <span>Priority</span>
-                  <span>Effort</span>
-                  <span>Updated</span>
-                  <span>Service</span>
+                  <MTSortHeader label="Status" col="status" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                  <MTSortHeader label="Title" col="title" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                  <MTSortHeader label="Priority" col="priority" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                  <MTSortHeader label="Effort" col="effort" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                  <MTSortHeader label="Updated" col="updatedAt" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                  <MTSortHeader label="Service" col="service" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                 </div>
                 {group.tickets.map((ticket) => (
                   <div key={ticket.id} className="px-4 py-3 hover:bg-muted/50 transition-colors">
@@ -398,5 +420,27 @@ export default function MyTicketsPage() {
         }}
       />
     </div>
+  )
+}
+
+const MT_PRIORITY_SORT: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 }
+const MT_EFFORT_SORT: Record<string, number>   = { EPIC: 0, NORMAL: 1, MINOR: 2 }
+const MT_STATUS_SORT: Record<string, number>   = { OPEN: 0, IN_PROGRESS: 1, IN_REVIEW: 2, DONE: 3, CANCELLED: 4 }
+
+function MTSortHeader({ label, col, sortBy, sortDir, onSort }: {
+  label: string; col: string; sortBy: string; sortDir: 'asc' | 'desc'; onSort: (c: string) => void
+}) {
+  const active = sortBy === col
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(col)}
+      className={cn('flex items-center gap-1 transition-colors hover:text-foreground', active && 'text-foreground')}
+    >
+      {label}
+      {active
+        ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)
+        : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+    </button>
   )
 }
