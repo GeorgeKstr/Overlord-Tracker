@@ -27,6 +27,7 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronRight,
+  Loader2,
 } from 'lucide-react'
 import { api } from '@/lib/api-client'
 import { buildProjectApiUrl, formatContextApiUrl, getStoredOverlordBaseUrl } from '@/lib/overlord-links'
@@ -954,7 +955,7 @@ export default function ProjectDetailPage() {
               }}
               disabled={deleteProjectMutation.isPending}
             >
-              <Trash2 className="h-4 w-4 mr-2" />
+              {deleteProjectMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
               {deleteProjectMutation.isPending ? 'Deleting...' : 'Delete'}
             </Button>
           )}
@@ -1212,7 +1213,7 @@ export default function ProjectDetailPage() {
           <Card>
             <CardContent className="pt-4">
               {loadingServices ? (
-                <p className="text-sm text-muted-foreground">Loading services...</p>
+                <p className="flex items-center gap-1.5 text-sm text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading services…</p>
               ) : services.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No services yet.</p>
               ) : (
@@ -1260,7 +1261,8 @@ export default function ProjectDetailPage() {
                                   })
                                 }}
                               >
-                                {updateServiceMutation.isPending ? 'Saving…' : 'Save'}
+                                {updateServiceMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                              {updateServiceMutation.isPending ? 'Saving…' : 'Save'}
                               </Button>
                             </>
                           ) : (
@@ -1399,7 +1401,7 @@ export default function ProjectDetailPage() {
             </div>
 
             {loadingMembers ? (
-              <div className="px-4 py-3 text-sm text-muted-foreground">Loading…</div>
+              <div className="flex items-center gap-1.5 px-4 py-3 text-sm text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…</div>
             ) : members.length === 0 ? (
               <div className="px-4 py-3 text-sm text-muted-foreground">
                 No collaborators yet. Add people by email.
@@ -1421,7 +1423,7 @@ export default function ProjectDetailPage() {
                     className="text-muted-foreground hover:text-destructive transition-colors"
                     title="Remove"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    {removeMemberMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                   </button>
                 </div>
               ))
@@ -1519,6 +1521,7 @@ export default function ProjectDetailPage() {
                           }}
                           disabled={isSaving || saveServiceSpecMutation.isPending}
                         >
+                          {(isSaving || saveServiceSpecMutation.isPending) && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                           {(isSaving || saveServiceSpecMutation.isPending) ? 'Saving…' : 'Save'}
                         </Button>
                       </>
@@ -1671,6 +1674,7 @@ export default function ProjectDetailPage() {
                             disabled={restoreKnowledgeMutation.isPending}
                             onClick={() => restoreKnowledgeMutation.mutate({ field, content: entry.content })}
                           >
+                            {restoreKnowledgeMutation.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
                             Restore
                           </Button>
                           <Button
@@ -1764,6 +1768,7 @@ export default function ProjectDetailPage() {
               websiteUrl: editForm.websiteUrl || undefined,
             })}
               disabled={!editForm.name || updateMutation.isPending}>
+              {updateMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {updateMutation.isPending ? 'Saving…' : 'Save changes'}
             </Button>
           </DialogFooter>
@@ -1795,6 +1800,7 @@ export default function ProjectDetailPage() {
               onClick={handleDeleteProject}
               disabled={deleteProjectMutation.isPending || deleteProjectNameInput.trim() !== project.name}
             >
+              {deleteProjectMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {deleteProjectMutation.isPending ? 'Deleting...' : 'Delete project'}
             </Button>
           </DialogFooter>
@@ -1821,6 +1827,7 @@ export default function ProjectDetailPage() {
             <Button variant="outline" onClick={() => setAddMemberOpen(false)}>Cancel</Button>
             <Button onClick={() => addMemberMutation.mutate(memberEmail)}
               disabled={!memberEmail || addMemberMutation.isPending}>
+              {addMemberMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {addMemberMutation.isPending ? 'Adding…' : 'Add'}
             </Button>
           </DialogFooter>
@@ -1863,6 +1870,7 @@ export default function ProjectDetailPage() {
               onClick={() => createServiceMutation.mutate(serviceForm)}
               disabled={!serviceForm.name.trim() || createServiceMutation.isPending}
             >
+              {createServiceMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {createServiceMutation.isPending ? 'Creating…' : 'Create service'}
             </Button>
           </DialogFooter>

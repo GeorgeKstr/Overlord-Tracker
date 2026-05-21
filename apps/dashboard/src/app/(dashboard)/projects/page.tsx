@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { Plus, FolderKanban, ExternalLink, Github, Globe, LayoutGrid, LayoutList, Search, Copy, Check, Trash2 } from 'lucide-react'
+import { Plus, FolderKanban, ExternalLink, Github, Globe, LayoutGrid, LayoutList, Search, Copy, Check, Trash2, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api-client'
@@ -637,6 +637,7 @@ export default function ProjectsPage() {
               onClick={() => createMutation.mutate(form)}
               disabled={!form.name.trim() || !form.key.trim() || !form.description.trim() || createMutation.isPending}
             >
+              {createMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {createMutation.isPending ? 'Creating…' : 'Create project'}
             </Button>
           </DialogFooter>
@@ -680,6 +681,7 @@ export default function ProjectsPage() {
                 deleteNameInput.trim() !== projectToDelete.name
               }
             >
+              {deleteProjectMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {deleteProjectMutation.isPending ? 'Deleting...' : 'Delete project'}
             </Button>
           </DialogFooter>

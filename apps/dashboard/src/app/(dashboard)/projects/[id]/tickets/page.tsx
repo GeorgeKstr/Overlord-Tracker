@@ -19,6 +19,7 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Loader2,
 } from 'lucide-react'
 import { api } from '@/lib/api-client'
 import {
@@ -639,6 +640,7 @@ export default function TicketsPage() {
               onClick={() => createMutation.mutate(form)}
               disabled={!form.title || createMutation.isPending}
             >
+              {createMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {createMutation.isPending ? 'Creating…' : 'Create ticket'}
             </Button>
           </DialogFooter>
