@@ -71,6 +71,16 @@ export class UsersService {
     return users.map(u => this.withProtected(u))
   }
 
+  async findRejected(requesterId: string) {
+    await this.assertAdmin(requesterId)
+    const users = await this.prisma.user.findMany({
+      where: { status: 'REJECTED' },
+      select: this.userSelect,
+      orderBy: { createdAt: 'asc' },
+    })
+    return users.map(u => this.withProtected(u))
+  }
+
   async updateRole(requesterId: string, userId: string, role: 'USER' | 'MODERATOR' | 'ADMIN') {
     await this.assertAdmin(requesterId)
     const target = await this.prisma.user.findUnique({ where: { id: userId } })

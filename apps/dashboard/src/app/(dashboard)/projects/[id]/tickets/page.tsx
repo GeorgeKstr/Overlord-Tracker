@@ -22,6 +22,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { api } from '@/lib/api-client'
+import { isTicketChanged, isTicketUnseen } from '@/lib/ticket-activity'
 import {
   TICKET_STATUS_LABELS,
   TICKET_PRIORITY_LABELS,
@@ -491,6 +492,7 @@ export default function TicketsPage() {
                 assigneeOptions={assigneeOptions}
                 showLabels={hasLabels}
                 colsCls={colsCls}
+                currentUserId={session?.user?.id}
                 onAssign={(assigneeId) => updateMutation.mutate({ ticketId: ticket.id, patch: { assigneeId: assigneeId || null } })}
               />
             ))}
@@ -815,14 +817,27 @@ function TicketRow({
   assigneeOptions,
   showLabels,
   colsCls,
+  currentUserId,
   onAssign,
 }: {
   ticket: Ticket
   assigneeOptions: UserSummary[]
   showLabels: boolean
   colsCls: string
+  currentUserId?: string
   onAssign: (id: string) => void
 }) {
+  const [, forceUpdate] = useState(0)
+
+  useEffect(() => {
+    const handler = () => forceUpdate((n) => n + 1)
+    window.addEventListener('ticket-activity-changed', handler)
+    return () => window.removeEventListener('ticket-activity-changed', handler)
+  }, [])
+
+  const changed = isTicketChanged(ticket.id)
+  const unseen = !!currentUserId && isTicketUnseen(ticket.id, currentUserId)
+
   return (
     <div className="px-4 py-3 hover:bg-muted/50 transition-colors">
       <div className={cn('md:grid md:items-center md:gap-2 flex items-center gap-3', colsCls)}>
@@ -836,12 +851,20 @@ function TicketRow({
               </span>
             )}
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium truncate">{ticket.title}</p>
-            {ticket.description && (
-              <p className="hidden sm:block text-xs text-muted-foreground line-clamp-1 lg:line-clamp-2">
-                {ticket.description}
-              </p>
+          <div className="min-w-0 flex items-center gap-1.5">
+            {changed && (
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" title="Recently changed" />
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium truncate">{ticket.title}</p>
+              {ticket.description && (
+                <p className="hidden sm:block text-xs text-muted-foreground line-clamp-1 lg:line-clamp-2">
+                  {ticket.description}
+                </p>
+              )}
+            </div>
+            {unseen && (
+              <span className="text-[11px] text-muted-foreground shrink-0 font-normal">New</span>
             )}
           </div>
           {showLabels && (

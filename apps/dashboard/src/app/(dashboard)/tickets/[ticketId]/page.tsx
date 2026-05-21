@@ -21,7 +21,8 @@ import {
   Copy,
   Loader2,
 } from 'lucide-react'
-import { api } from '@/lib/api-client'
+import { api, isApiOffline } from '@/lib/api-client'
+import { markTicketChanged, clearTicketChanged, markTicketUnseen, clearTicketUnseen } from '@/lib/ticket-activity'
 import { buildProjectApiUrl, formatContextApiUrl, getStoredOverlordBaseUrl } from '@/lib/overlord-links'
 import {
   TICKET_STATUS_LABELS,
@@ -122,6 +123,16 @@ export default function TicketDetailPage() {
     enabled: !!ticket?.projectId,
   })
 
+  // ── Activity tracking ──────────────────────────────────────────────────────
+  // Clear recently-changed dot and unseen badge when the ticket is opened.
+  useEffect(() => {
+    if (!ticket) return
+    clearTicketChanged(ticketId)
+    if (ticket.assigneeId && session?.user?.id === ticket.assigneeId) {
+      clearTicketUnseen(ticketId)
+    }
+  }, [ticket, ticketId, session?.user?.id])
+
   // ── Mutations ──────────────────────────────────────────────────────────────
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ['tickets'] })
@@ -129,9 +140,19 @@ export default function TicketDetailPage() {
     queryClient.invalidateQueries({ queryKey: ['my-tickets-count'] })
   }
 
+  function invalidateAndMark() {
+    invalidate()
+    markTicketChanged(ticketId)
+  }
+
   const updateMutation = useMutation({
     mutationFn: (data: Partial<Ticket>) => api.patch<Ticket>(`/tickets/${ticketId}`, data),
-    onSuccess: invalidate,
+    onSuccess: (_result, variables) => {
+      invalidateAndMark()
+      if (variables.assigneeId) {
+        markTicketUnseen(ticketId, variables.assigneeId)
+      }
+    },
   })
 
   const deleteMutation = useMutation({
@@ -142,19 +163,19 @@ export default function TicketDetailPage() {
   const addCommentMutation = useMutation({
     mutationFn: (content: string) =>
       api.post<Comment>('/comments', { content, ticketId }),
-    onSuccess: invalidate,
+    onSuccess: invalidateAndMark,
   })
 
   const deleteCommentMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/comments/${id}`),
-    onSuccess: invalidate,
+    onSuccess: invalidateAndMark,
   })
 
   const addLabelMutation = useMutation({
     mutationFn: (labelId: string) =>
       api.post(`/labels/ticket/${ticketId}/label/${labelId}`, {}),
     onSuccess: () => {
-      invalidate()
+      invalidateAndMark()
       setAddingLabel(false)
     },
   })
@@ -162,7 +183,7 @@ export default function TicketDetailPage() {
   const removeLabelMutation = useMutation({
     mutationFn: (labelId: string) =>
       api.delete(`/labels/ticket/${ticketId}/label/${labelId}`),
-    onSuccess: invalidate,
+    onSuccess: invalidateAndMark,
   })
 
   const uploadAttachmentMutation = useMutation({
@@ -184,12 +205,12 @@ export default function TicketDetailPage() {
         reader.onerror = () => reject(reader.error)
         reader.readAsDataURL(file)
       }),
-    onSuccess: invalidate,
+    onSuccess: invalidateAndMark,
   })
 
   const deleteAttachmentMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/attachments/${id}`),
-    onSuccess: invalidate,
+    onSuccess: invalidateAndMark,
   })
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -235,6 +256,24 @@ export default function TicketDetailPage() {
   }
 
   if (error || !ticket) {
+    if (isApiOffline(error)) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+            <AlertCircle className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="font-medium">API is unreachable</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Can't connect to the API service. Check that it is running and try again.
+            </p>
+          </div>
+          <button type="button" onClick={() => router.back()} className="text-sm underline text-muted-foreground">
+            Go back
+          </button>
+        </div>
+      )
+    }
     return (
       <div className="text-center py-20 text-muted-foreground">
         Ticket not found.{' '}

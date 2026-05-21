@@ -47,6 +47,12 @@ export class UsersController {
     return this.usersService.findPending(user.id)
   }
 
+  @Get('rejected')
+  @ApiOperation({ summary: 'Admin: list rejected sign-up requests' })
+  findRejected(@CurrentUser() user: User) {
+    return this.usersService.findRejected(user.id)
+  }
+
   @Get()
   @ApiOperation({ summary: 'List all users' })
   findAll() {

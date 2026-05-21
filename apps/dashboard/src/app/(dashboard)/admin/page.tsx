@@ -37,6 +37,8 @@ export default function AdminPage() {
   const [usersSort, setUsersSort] = useState<UsersSort>('role-asc')
   const [pendingSearch, setPendingSearch] = useState('')
   const [pendingSort, setPendingSort] = useState<PendingSort>('name-asc')
+  const [rejectedSearch, setRejectedSearch] = useState('')
+  const [rejectedSort, setRejectedSort] = useState<PendingSort>('name-asc')
   const [overlordBaseUrl, setOverlordBaseUrl] = useState('')
   const [baseUrlSaved, setBaseUrlSaved] = useState(false)
   const [envOpen, setEnvOpen] = useState(false)
@@ -148,6 +150,12 @@ export default function AdminPage() {
     enabled: isAdmin,
   })
 
+  const rejectedQuery = useQuery({
+    queryKey: ['users', 'rejected'],
+    queryFn: () => api.get<UserSummary[]>('/users/rejected'),
+    enabled: isAdmin,
+  })
+
   const updateRoleMutation = useMutation({
     mutationFn: ({ userId, role }: { userId: string; role: PlatformRole }) =>
       api.post<RoleUpdateResponse>(`/users/${userId}/role`, { role }),
@@ -161,6 +169,14 @@ export default function AdminPage() {
     mutationFn: (userId: string) => api.post<RoleUpdateResponse>(`/users/${userId}/approve`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users', 'pending'] })
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+  })
+
+  const reApproveMutation = useMutation({
+    mutationFn: (userId: string) => api.post<RoleUpdateResponse>(`/users/${userId}/approve`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users', 'rejected'] })
       queryClient.invalidateQueries({ queryKey: ['users'] })
     },
   })
@@ -286,6 +302,30 @@ export default function AdminPage() {
     })
   }, [pendingQuery.data, pendingSearch, pendingSort])
 
+  const filteredRejected = useMemo(() => {
+    const q = rejectedSearch.toLowerCase()
+    const users = (rejectedQuery.data ?? []).filter(
+      (u) =>
+        !q ||
+        u.email.toLowerCase().includes(q) ||
+        (u.name ?? '').toLowerCase().includes(q),
+    )
+    return [...users].sort((a, b) => {
+      switch (rejectedSort) {
+        case 'name-asc':
+          return (a.name ?? a.email).localeCompare(b.name ?? b.email)
+        case 'name-desc':
+          return (b.name ?? b.email).localeCompare(a.name ?? a.email)
+        case 'email-asc':
+          return a.email.localeCompare(b.email)
+        case 'email-desc':
+          return b.email.localeCompare(a.email)
+        default:
+          return 0
+      }
+    })
+  }, [rejectedQuery.data, rejectedSearch, rejectedSort])
+
   if (meQuery.isLoading) {
     return <div className="h-24 rounded-lg bg-muted animate-pulse" />
   }
@@ -293,6 +333,7 @@ export default function AdminPage() {
   if (!isAdmin) return null
 
   const pendingCount = pendingQuery.data?.length ?? 0
+  const rejectedCount = rejectedQuery.data?.length ?? 0
 
   return (
     <div className="space-y-6">
@@ -314,6 +355,14 @@ export default function AdminPage() {
             {pendingCount > 0 && (
               <Badge variant="secondary" className="h-5 px-1.5 text-xs">
                 {pendingCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="rejected" className="gap-1.5">
+            Rejected
+            {rejectedCount > 0 && (
+              <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+                {rejectedCount}
               </Badge>
             )}
           </TabsTrigger>
@@ -540,6 +589,78 @@ export default function AdminPage() {
                 <p className="text-xs text-destructive">
                   {((approveMutation.error ?? rejectMutation.error) as Error)?.message ??
                     'Action failed'}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Rejected tab ───────────────────────────────────────── */}
+        <TabsContent value="rejected" className="mt-4">
+          <Card>
+            <CardContent className="pt-4 space-y-3">
+              {/* Toolbar */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    placeholder="Search by name or email…"
+                    value={rejectedSearch}
+                    onChange={(e) => setRejectedSearch(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+                <Select
+                  value={rejectedSort}
+                  onValueChange={(v) => setRejectedSort(v as PendingSort)}
+                >
+                  <SelectTrigger className="w-full sm:w-48">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name-asc">Name A → Z</SelectItem>
+                    <SelectItem value="name-desc">Name Z → A</SelectItem>
+                    <SelectItem value="email-asc">Email A → Z</SelectItem>
+                    <SelectItem value="email-desc">Email Z → A</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* List */}
+              {rejectedQuery.isLoading ? (
+                <div className="h-10 rounded bg-muted animate-pulse" />
+              ) : filteredRejected.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  {rejectedSearch ? 'No users match your search.' : 'No rejected users.'}
+                </p>
+              ) : (
+                <div className="rounded-lg border divide-y">
+                  {filteredRejected.map((u) => (
+                    <div
+                      key={u.id}
+                      className="flex items-center justify-between gap-3 px-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{u.name ?? 'Unnamed user'}</p>
+                        <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        disabled={reApproveMutation.isPending}
+                        onClick={() => reApproveMutation.mutate(u.id)}
+                      >
+                        <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                        Re-approve
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {reApproveMutation.isError && (
+                <p className="text-xs text-destructive">
+                  {(reApproveMutation.error as Error)?.message ?? 'Action failed'}
                 </p>
               )}
             </CardContent>

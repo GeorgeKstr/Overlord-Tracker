@@ -43,3 +43,10 @@ export const api = {
     apiFetch<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: (path: string) => apiFetch<void>(path, { method: 'DELETE' }),
 }
+
+const OFFLINE_MESSAGE = 'Cannot reach API. Check dashboard API proxy and API service health.'
+
+/** Returns true when the error is a network/proxy connectivity failure. */
+export function isApiOffline(error: unknown): boolean {
+  return error instanceof Error && error.message === OFFLINE_MESSAGE
+}

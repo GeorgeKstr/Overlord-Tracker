@@ -5,11 +5,12 @@ import { useEffect, useState } from 'react'
 import { Plus, FolderKanban, ExternalLink, Github, Globe, LayoutGrid, LayoutList, Search, Copy, Check, Trash2, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { api } from '@/lib/api-client'
+import { api, isApiOffline } from '@/lib/api-client'
 import { buildProjectApiUrl, formatContextApiUrl, getStoredOverlordBaseUrl } from '@/lib/overlord-links'
 import { formatDate } from '@/lib/utils'
 import type { Project, Ticket as TicketType, UserSummary } from '@platform/shared-types'
 import { DataPaginator } from '@/components/pagination/data-paginator'
+import { ApiOfflineState } from '@/components/api-offline-state'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -269,12 +270,16 @@ export default function ProjectsPage() {
       )}
 
       {projectsQuery.isError ? (
+        isApiOffline(projectsQuery.error) ? (
+          <ApiOfflineState onRetry={() => projectsQuery.refetch()} />
+        ) : (
         <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4">
           <p className="text-sm font-medium text-destructive">Could not load projects</p>
           <p className="mt-1 text-xs text-muted-foreground">
             {(projectsQuery.error as Error)?.message ?? 'Unknown API error'}
           </p>
         </div>
+        )
       ) : isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => (

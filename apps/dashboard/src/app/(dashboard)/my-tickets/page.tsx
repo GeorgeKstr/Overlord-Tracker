@@ -12,7 +12,8 @@ import {
   ArrowDown,
   ArrowUpDown,
 } from 'lucide-react'
-import { api } from '@/lib/api-client'
+import { api, isApiOffline } from '@/lib/api-client'
+import { isTicketChanged, isTicketUnseen } from '@/lib/ticket-activity'
 import {
   TICKET_STATUS_LABELS,
   TICKET_PRIORITY_LABELS,
@@ -32,6 +33,7 @@ import {
 } from '@/components/ui/select'
 import { StatusBadge, PriorityBadge, StatusIcon } from '@/components/tickets/ticket-meta'
 import { DataPaginator } from '@/components/pagination/data-paginator'
+import { ApiOfflineState } from '@/components/api-offline-state'
 
 const ALL_STATUSES = ['OPEN', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED'] as const
 
@@ -61,6 +63,14 @@ export default function MyTicketsPage() {
     const raw = Number(localStorage.getItem('overlord.myTickets.pageSize') ?? '20')
     return [10, 20, 50].includes(raw) ? raw : 20
   })
+  // Force re-render when ticket activity changes (dot / unseen badge).
+  const [, forceActivityUpdate] = useState(0)
+
+  useEffect(() => {
+    const handler = () => forceActivityUpdate((n) => n + 1)
+    window.addEventListener('ticket-activity-changed', handler)
+    return () => window.removeEventListener('ticket-activity-changed', handler)
+  }, [])
 
   useEffect(() => {
     localStorage.setItem('overlord.myTickets.pageSize', String(pageSize))
@@ -329,9 +339,13 @@ export default function MyTicketsPage() {
           {[1, 2, 3, 4].map((i) => <div key={i} className="h-14 bg-muted rounded animate-pulse" />)}
         </div>
       ) : ticketsQuery.isError ? (
+        isApiOffline(ticketsQuery.error) ? (
+          <ApiOfflineState onRetry={() => ticketsQuery.refetch()} />
+        ) : (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {(ticketsQuery.error as Error)?.message ?? 'Failed to load tickets. Please refresh.'}
         </div>
+        )
       ) : sortedFiltered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <p className="text-muted-foreground mb-3">No tickets match this filter.</p>
@@ -375,12 +389,20 @@ export default function MyTicketsPage() {
                           )}
                         </div>
 
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{ticket.title}</p>
-                          {ticket.description && (
-                            <p className="hidden sm:block text-xs text-muted-foreground line-clamp-1 lg:line-clamp-2">
-                              {ticket.description}
-                            </p>
+                        <div className="min-w-0 flex items-center gap-1.5">
+                          {isTicketChanged(ticket.id) && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" title="Recently changed" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate">{ticket.title}</p>
+                            {ticket.description && (
+                              <p className="hidden sm:block text-xs text-muted-foreground line-clamp-1 lg:line-clamp-2">
+                                {ticket.description}
+                              </p>
+                            )}
+                          </div>
+                          {session?.user?.id && isTicketUnseen(ticket.id, session.user.id) && (
+                            <span className="text-[11px] text-muted-foreground shrink-0 font-normal">New</span>
                           )}
                         </div>
 
